@@ -24278,7 +24278,7 @@ header{grid-area:top;display:flex;align-items:center;gap:6px;padding:0 12px;back
 header .logo{font-weight:900;font-size:17px;margin-right:10px;letter-spacing:.3px}
 header .logo b{color:var(--acc)}
 header .sp{flex:1}
-.badge{font-size:11px;padding:3px 8px;border-radius:20px;border:1px solid var(--line);color:var(--muted)}
+.badge{white-space:nowrap;cursor:pointer;font-size:11px;padding:3px 8px;border-radius:20px;border:1px solid var(--line);color:var(--muted)}
 .badge.on{color:var(--ok);border-color:#1f6b45}
 .menu{position:relative}
 .menu .dd{display:none;position:absolute;right:0;top:110%;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px;z-index:50;min-width:200px;box-shadow:0 10px 30px #0008}
@@ -24370,6 +24370,31 @@ table.prev th{color:var(--acc)}
 #ctx .sub{display:none;position:absolute;left:100%;top:-6px;background:#fff;border-radius:12px;box-shadow:0 12px 40px #0009;padding:6px;min-width:210px}
 #ctx .sub.left{left:auto;right:100%}
 #ctx .it:hover>.sub{display:block}
+
+#chat{position:absolute;top:0;right:0;bottom:0;width:360px;background:var(--panel);border-left:1px solid var(--line);display:none;flex-direction:column;z-index:20;box-shadow:-10px 0 30px #0008}
+#chat.show{display:flex}
+#chat .ch-h{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line)}
+#chat .ch-h button{padding:3px 9px}
+#chat .ch-t{padding:8px 12px;font-size:12px;color:var(--muted);border-bottom:1px solid var(--line)}
+#chat .ch-m{flex:1;overflow:auto;padding:10px;display:flex;flex-direction:column;gap:8px}
+#chat .msg{max-width:88%;padding:8px 11px;border-radius:12px;font-size:13px;line-height:1.4;white-space:pre-wrap}
+#chat .msg.u{align-self:flex-end;background:#3b2a6e}
+#chat .msg.a{align-self:flex-start;background:var(--panel2);border:1px solid var(--line)}
+#chat .msg.err{border-color:#7a2a2a;color:#ffb3a8}
+#chat .msg img{display:block;width:100%;border-radius:8px;margin-top:6px;cursor:pointer;border:2px solid transparent}
+#chat .msg img:hover{border-color:var(--acc)}
+#chat .msg .ver{font-size:11px;color:var(--muted);margin-top:4px}
+#chat .ch-refs{display:flex;gap:6px;padding:0 10px;flex-wrap:wrap}
+#chat .ch-refs span{position:relative}
+#chat .ch-refs img{width:46px;height:46px;object-fit:cover;border-radius:6px;border:1px solid var(--line)}
+#chat .ch-refs b{position:absolute;top:-6px;right:-6px;background:#000;border-radius:50%;width:18px;height:18px;font-size:11px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+#chat .ch-i{padding:10px;border-top:1px solid var(--line)}
+#chat textarea{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:8px;color:var(--txt);resize:none}
+#chat .ch-b{display:flex;gap:6px;align-items:center;margin-top:6px}
+#chat .ch-b select{background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:6px}
+#chat .ch-b .clip{cursor:pointer;font-size:18px;padding:4px 8px;border:1px solid var(--line);border-radius:7px}
+#chat .ch-b #chatSend{margin-left:auto}
+.typing{display:inline-block;animation:bl 1s infinite}@keyframes bl{50%{opacity:.3}}
 #busy{position:fixed;inset:0;background:#000b;display:none;align-items:center;justify-content:center;flex-direction:column;gap:16px;z-index:100;font-size:15px}
 #busy.show{display:flex}
 .spin{width:54px;height:54px;border-radius:50%;border:5px solid #333;border-top-color:var(--acc);animation:sp 1s linear infinite}
@@ -24392,6 +24417,7 @@ table.prev th{color:var(--acc)}
   <button id="bUndo" title="Deshacer (Ctrl+Z)">↶</button>
   <button id="bRedo" title="Rehacer (Ctrl+Y)">↷</button>
   <div class="sp"></div>
+  <button id="bChat" class="ai">💬 Chat de diseño</button>
   <span class="badge" id="aiBadge">IA: sin clave</span>
   <button id="bSerie" class="pri">🧩 Diseños en serie</button>
   <div class="menu" id="mExp"><button>⬇ Exportar ▾</button><div class="dd">
@@ -24420,6 +24446,12 @@ table.prev th{color:var(--acc)}
 <main id="stage">
   <div id="zoneHint">Arrastra un rectángulo sobre el error · Esc para cancelar</div>
   <canvas id="c"></canvas>
+  <div id="chat"><div class="ch-h"><b>💬 Chat de diseño</b><button id="chatClose">✕</button></div>
+    <div class="ch-t" id="chatTarget"></div>
+    <div class="ch-m" id="chatMsgs"></div>
+    <div class="ch-refs" id="chatRefs"></div>
+    <div class="ch-i"><textarea id="chatIn" rows="2" placeholder="Ej: haz el título más grande y dorado · cambia el fondo a noche · agrega fuego atrás"></textarea>
+      <div class="ch-b"><label class="clip" title="Adjuntar imagen de referencia">📎<input type="file" id="chatFile" accept="image/*" multiple hidden></label><select id="chatQ" title="Calidad"><option value="low">Baja</option><option value="medium" selected>Media</option><option value="high">Alta</option></select><button id="chatSend" class="ai">Enviar ➤</button></div></div></div>
   <div id="zoomBar"><button id="zOut">−</button><span id="zoomLbl" class="muted">100%</span><button id="zIn">＋</button><button id="zFit">Ajustar</button></div>
 </main>
 
@@ -24482,7 +24514,8 @@ table.prev th{color:var(--acc)}
 
 <!-- Diseño completo IA -->
 <dialog id="dlgGen"><div class="dh"><h2>✨ Diseño completo con IA</h2><button data-close>✕</button></div><div class="db">
-  <label>¿Qué diseño quieres?<textarea id="genPrompt" rows="4" placeholder="Ej: Flyer para taquería de noche, colores rojo y dorado, tacos al pastor en primer plano, ambiente festivo, letras 3D doradas"></textarea></label>
+  <div style="display:flex;justify-content:flex-end;margin-bottom:-6px"><button id="genEnhance" class="ai" style="padding:4px 10px;font-size:12px">✨ Mejorar mi pedido</button> <button id="genUndoEnh" style="padding:4px 10px;font-size:12px;display:none;margin-left:6px">↶ Volver al mío</button></div>
+  <label>¿Qué diseño quieres?<textarea id="genPrompt" rows="6" placeholder="Ej: Flyer para taquería de noche, colores rojo y dorado, tacos al pastor en primer plano, ambiente festivo, letras 3D doradas"></textarea></label>
   <div class="radio"><input type="radio" name="genMode" value="none" id="gm1" checked><label for="gm1" style="margin:0;color:var(--txt)"><b>Sin textos</b> — la IA hace solo la imagen y yo pongo los textos encima (cero errores de ortografía, ideal para series)</label></div>
   <div class="radio"><input type="radio" name="genMode" value="exact" id="gm2"><label for="gm2" style="margin:0;color:var(--txt)"><b>Con estos textos exactos</b> (como ChatGPT; si sale un error lo corriges con 🩹)</label></div>
   <label>Textos exactos (uno por renglón)<textarea id="genTexts" rows="4" placeholder="Taquería El Pastorcito&#10;AQUÍ TE ESPERA EL ANTOJO&#10;¡Te esperamos!&#10;Tel. 238 103 5083"></textarea></label>
@@ -24635,7 +24668,7 @@ function isImg(o){return o&&o.type==='image';}
 function makeGrad(colors,horiz){return new fabric.Gradient({type:'linear',gradientUnits:'percentage',coords:horiz?{x1:0,y1:0,x2:1,y2:0}:{x1:0,y1:0,x2:0,y2:1},colorStops:colors.map((c,i)=>({offset:colors.length===1?0:i/(colors.length-1),color:c}))});}
 
 /* ---------- lienzo / zoom ---------- */
-function fit(){const st=$('#stage');const z=Math.min((st.clientWidth-60)/W,(st.clientHeight-60)/H);setZoom(z);}
+function fit(){const st=$('#stage');const ch=$('#chat');const pr=ch&&ch.classList.contains('show')?360:0;st.style.paddingRight=pr+'px';const z=Math.min((st.clientWidth-pr-60)/W,(st.clientHeight-60)/H);setZoom(z);}
 function setZoom(z){zoom=Math.max(0.05,Math.min(z,4));canvas.setDimensions({width:Math.round(W*zoom),height:Math.round(H*zoom)});canvas.setViewportTransform([zoom,0,0,zoom,0,0]);$('#zoomLbl').textContent=Math.round(zoom*100)+'%';}
 window.addEventListener('resize',()=>fit());
 $('#zIn').onclick=()=>setZoom(zoom*1.2);$('#zOut').onclick=()=>setZoom(zoom/1.2);$('#zFit').onclick=fit;
@@ -25140,7 +25173,7 @@ async function exportPSD(){if(!window.agPsd)return toast('No cargó el component
 document.querySelectorAll('[data-exp]').forEach(b=>b.onclick=()=>{const f=b.dataset.exp;if(f==='psd')exportPSD();else exportImage(f);});
 
 /* ---------- IA (OpenAI) ---------- */
-function updBadge(){const b=$('#aiBadge');b.textContent=settings.key?('IA: '+settings.model):'IA: sin clave';b.classList.toggle('on',!!settings.key);}
+function updBadge(){const b=$('#aiBadge');b.textContent=settings.key?'IA ✓':'IA: sin clave';b.title=settings.key?('Modelo: '+settings.model):'Configura tu API key';b.classList.toggle('on',!!settings.key);}
 function openSettings(){$('#setKey').value=settings.key;$('#setModel').value=settings.model;$('#setQuality').value=settings.quality;openDialog('dlgSettings');}
 $('#bSettings').onclick=openSettings;$('#aiBadge').onclick=openSettings;
 $('#setSave').onclick=()=>{settings={key:$('#setKey').value.trim(),model:$('#setModel').value,quality:$('#setQuality').value};store.set('settings',settings);updBadge();$('#dlgSettings').close();toast('Ajustes guardados');renderProps();};
@@ -25233,6 +25266,53 @@ async function aiRemoveBg(){if(needKey())return;const img=selImage();if(!img)ret
   try{const el=img._originalElement||img.getElement();const iw=el.naturalWidth||el.width,ih=el.naturalHeight||el.height;const model=transpModel();
     const url=await aiEdit({prompt:'Quita el fondo por completo y deja únicamente el sujeto principal, sin cambiar nada del sujeto. Fondo 100% transparente.',model,images:[await canvasToBlob(elToCanvas(el,iw,ih))],mask:null,size:apiSize(model,iw,ih,'medium'),quality:settings.quality,transparent:true});
     await replaceImageSrc(img,url,'contain');busy();}catch(e){alertErr(e)}}
+
+
+/* ---------- IA de texto (mejorar pedido) ---------- */
+const TEXT_MODELS=['gpt-5-mini','gpt-4.1-mini','gpt-4o-mini'];
+async function aiText(system,user){const list=settings.textModel?[settings.textModel].concat(TEXT_MODELS.filter(m=>m!==settings.textModel)):TEXT_MODELS;let last;
+  for(const m of list){try{const j=await oaiFetch('chat/completions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:m,messages:[{role:'system',content:system},{role:'user',content:user}]})});const t=j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content;if(t){if(settings.textModel!==m){settings.textModel=m;store.set('settings',settings);}return t.trim();}}catch(e){last=e;if(e.status===401||/quota|billing|insufficient/i.test(e.message))throw e;}}
+  throw last||new Error('No se pudo usar la IA de texto');}
+const ENH_SYS='Eres director de arte de una agencia de publicidad en México. Convierte la idea del usuario en una descripción detallada para que una IA de imágenes genere un diseño publicitario para redes sociales de calidad profesional. Incluye: composición y jerarquía (qué va arriba, al centro y abajo), paleta de colores, iluminación y ambiente, estilo de las tipografías (por ejemplo letras 3D doradas con borde y sombra), elementos decorativos y la foto o producto principal. No inventes textos, precios, teléfonos ni direcciones: si el usuario da textos, respétalos exactamente entre comillas. Escribe en español, en un solo párrafo de máximo 130 palabras. Devuelve solo la descripción.';
+$('#genEnhance').onclick=async()=>{if(needKey())return;const ta=$('#genPrompt');const idea=ta.value.trim();if(!idea)return toast('Escribe primero una idea corta');const texts=$('#genTexts').value.trim();const b=$('#genEnhance');b.disabled=true;b.textContent='✨ Mejorando…';
+  try{const out=await aiText(ENH_SYS,`Idea: ${idea}\nFormato: ${W}x${H} px.${texts&&document.querySelector('input[name=genMode]:checked').value==='exact'?'\nTextos que deben aparecer:\n'+texts:'\nEl diseño NO lleva textos.'}`);ta.dataset.orig=idea;ta.value=out;$('#genUndoEnh').style.display='';}catch(e){alertErr(e);}finally{b.disabled=false;b.textContent='✨ Mejorar mi pedido';}};
+$('#genUndoEnh').onclick=()=>{const ta=$('#genPrompt');if(ta.dataset.orig!=null){ta.value=ta.dataset.orig;}$('#genUndoEnh').style.display='none';};
+
+/* ---------- chat de diseño ---------- */
+const chat={target:null,refs:[],busy:false};
+$('#bChat').onclick=()=>{const c=$('#chat');c.classList.toggle('show');fit();if(c.classList.contains('show')){$('#chatQ').value=settings.quality;updChatTarget();if(!$('#chatMsgs').children.length)chatMsg('a','Hola 👋 Dime qué quieres y lo hago.\n\n• Si no hay diseño, escribe qué diseño quieres y lo creo.\n• Si ya hay uno, pídeme cambios: "título más grande", "fondo de noche", "más brillo".\n• Con 📎 puedes adjuntar tu logo o fotos.\n• Toca cualquier versión para regresar a ella.');$('#chatIn').focus();}};
+$('#chatClose').onclick=()=>{$('#chat').classList.remove('show');fit();};
+function chatTargetObj(){const a=canvas.getActiveObject();if(isImg(a))return a;if(chat.target&&canvas.getObjects().includes(chat.target))return chat.target;return canvas.getObjects().find(o=>isImg(o)&&o.name==='Diseño IA')||null;}
+function updChatTarget(){const t=chatTargetObj();$('#chatTarget').innerHTML=t?`Editando: <b style="color:var(--txt)">${esc(t.name||'Imagen')}</b> · selecciona otra imagen para cambiar`:'Sin diseño todavía: tu primer mensaje creará uno nuevo';}
+canvas.on('selection:created',()=>{if($('#chat').classList.contains('show'))updChatTarget();});canvas.on('selection:updated',()=>{if($('#chat').classList.contains('show'))updChatTarget();});
+function chatMsg(who,text,img,extra){const d=document.createElement('div');d.className='msg '+who+(extra&&extra.err?' err':'');d.textContent=text||'';if(img){const im=new Image();im.src=img;im.title='Clic para usar esta versión';im.onclick=()=>useVersion(img,extra&&extra.target);d.appendChild(im);const v=document.createElement('div');v.className='ver';v.textContent='Toca la imagen para regresar a esta versión';d.appendChild(v);}const m=$('#chatMsgs');m.appendChild(d);m.scrollTop=m.scrollHeight;return d;}
+async function useVersion(url,t){const tg=(t&&canvas.getObjects().includes(t))?t:chatTargetObj();if(!tg)return placeDesign(url);await replaceImageSrc(tg,url,'cover');canvas.setActiveObject(tg);canvas.requestRenderAll();toast('Versión aplicada');}
+function renderRefs(){$('#chatRefs').innerHTML=chat.refs.map((r,i)=>`<span><img src="${r.url}"><b data-r="${i}">✕</b></span>`).join('');}
+$('#chatRefs').onclick=e=>{const b=e.target.closest('[data-r]');if(!b)return;chat.refs.splice(+b.dataset.r,1);renderRefs();};
+$('#chatFile').onchange=async e=>{for(const f of e.target.files){chat.refs.push({url:await fileToDataURL(f,1536)});}e.target.value='';renderRefs();};
+$('#chatIn').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();chatSend();}});
+$('#chatSend').onclick=chatSend;
+async function chatSend(){if(chat.busy)return;const txt=$('#chatIn').value.trim();if(!txt)return;if(needKey())return;
+  const q=$('#chatQ').value,model=settings.model;const refs=chat.refs.slice();chat.refs=[];renderRefs();$('#chatIn').value='';
+  const um=chatMsg('u',txt);refs.forEach(r=>{const im=new Image();im.src=r.url;im.style.cssText='width:60px;height:60px;object-fit:cover;border-radius:6px;margin:4px 4px 0 0;display:inline-block';um.appendChild(im);});
+  const wait=chatMsg('a','');wait.innerHTML='<span class="typing">Generando… (30 s a 2 min)</span>';chat.busy=true;$('#chatSend').disabled=true;
+  try{const t=chatTargetObj();const refBlobs=refs.map(r=>dataURLtoBlob(r.url));let url;
+    if(t){const el=t._originalElement||t.getElement();const iw=el.naturalWidth||el.width,ih=el.naturalHeight||el.height;
+      if(!t.__v0){t.__v0=elToCanvas(el,iw,ih).toDataURL('image/png');}
+      const prompt=`Aplica este cambio al diseño: ${txt}.\nMantén todo lo demás igual: misma composición, estilo, colores y textos, salvo lo que se pide cambiar.${refBlobs.length?' Usa las imágenes adicionales adjuntas como referencia o para integrarlas (por ejemplo el logotipo, sin modificarlo).':''} Si hay textos, escríbelos con ortografía perfecta en español.`;
+      url=await aiEdit({prompt,model,images:[await canvasToBlob(elToCanvas(el,iw,ih))].concat(refBlobs),mask:null,size:apiSize(model,iw,ih,q),quality:q});
+      await replaceImageSrc(t,url,'cover');chat.target=t;
+      if(!chat.firstShown){chat.firstShown=true;wait.remove();chatMsg('a','Versión original (por si quieres regresar):',t.__v0,{target:t});wait.textContent='';$('#chatMsgs').appendChild(wait);}
+      wait.textContent='Listo ✅';const im=new Image();im.src=url;im.onclick=()=>useVersion(url,t);wait.appendChild(im);
+    }else{
+      const orient=W>H*1.1?'horizontal':H>W*1.1?'vertical':'cuadrado';
+      const prompt=`Diseño gráfico publicitario profesional para redes sociales, formato ${orient}, calidad de agencia, composición llamativa, colores vibrantes, iluminación intensa, tipografías 3D con brillo y profundidad cuando haya textos, ortografía perfecta en español.${refBlobs.length?' Integra las imágenes adjuntas (foto real o logotipo) respetándolas fielmente.':''}\nPedido: ${txt}`;
+      const size=apiSize(model,W,H,q);url=refBlobs.length?await aiEdit({prompt,model,images:refBlobs,mask:null,size,quality:q}):await aiGenerate({prompt,model,size,quality:q});
+      await placeDesign(url);chat.target=canvas.getActiveObject();wait.textContent='Listo ✅ Pídeme cambios cuando quieras.';const im=new Image();im.src=url;const tg=chat.target;im.onclick=()=>useVersion(url,tg);wait.appendChild(im);
+    }
+    updChatTarget();
+  }catch(e){wait.classList.add('err');wait.textContent='⚠ '+aiErrorMsg(e);}
+  finally{chat.busy=false;$('#chatSend').disabled=false;const m=$('#chatMsgs');m.scrollTop=m.scrollHeight;}}
 
 /* ---------- diseños en serie ---------- */
 let serie={rows:[],cols:[],files:new Map(),zip:null};
