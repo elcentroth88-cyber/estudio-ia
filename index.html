@@ -24345,7 +24345,7 @@ dialog .radio{display:flex;gap:8px;align-items:flex-start;color:var(--txt);margi
 .tcard{border:1px solid var(--line);border-radius:10px;overflow:hidden;cursor:pointer;background:var(--bg);position:relative}
 .tcard:hover{border-color:var(--acc)}
 .tcard .th{aspect-ratio:4/5;display:flex;align-items:center;justify-content:center;font-size:40px;background:#0b0c10}
-.tcard .th img{width:100%;height:100%;object-fit:cover}
+.tcard .th img{width:100%;height:100%;object-fit:contain}
 .tcard .tn{padding:7px 9px;font-size:12px}
 .tcard .del{position:absolute;top:5px;right:5px;padding:2px 7px;font-size:11px}
 .rgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-top:10px}
@@ -24356,6 +24356,20 @@ table.prev td,table.prev th{border:1px solid var(--line);padding:4px 6px;text-al
 table.prev th{color:var(--acc)}
 .fld{display:inline-block;margin:2px 3px 2px 0;padding:2px 8px;border-radius:12px;font-size:11.5px;border:1px solid var(--line)}
 .fld.ok{border-color:#1f6b45;color:var(--ok)}.fld.no{border-color:#6b2a1f;color:#ff8f7a}
+
+#ctx{position:fixed;z-index:90;background:#fff;color:#1d1f24;border-radius:12px;box-shadow:0 12px 40px #0009;padding:6px;min-width:250px;font-size:14px;display:none;user-select:none}
+#ctx.show{display:block}
+#ctx .it{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:7px;cursor:pointer;position:relative;white-space:nowrap}
+#ctx .it:hover{background:#eef0f4}
+#ctx .it .ic{width:20px;text-align:center}
+#ctx .it .k{margin-left:auto;font-size:11.5px;color:#6b7180;background:#f1f2f5;border-radius:5px;padding:1px 6px}
+#ctx .it .ar{margin-left:auto;color:#6b7180}
+#ctx .it.dis{opacity:.4;pointer-events:none}
+#ctx .it.ai .ic{color:#8a2be2}
+#ctx .sep{height:1px;background:#e5e7eb;margin:5px 6px}
+#ctx .sub{display:none;position:absolute;left:100%;top:-6px;background:#fff;border-radius:12px;box-shadow:0 12px 40px #0009;padding:6px;min-width:210px}
+#ctx .sub.left{left:auto;right:100%}
+#ctx .it:hover>.sub{display:block}
 #busy{position:fixed;inset:0;background:#000b;display:none;align-items:center;justify-content:center;flex-direction:column;gap:16px;z-index:100;font-size:15px}
 #busy.show{display:flex}
 .spin{width:54px;height:54px;border-radius:50%;border:5px solid #333;border-top-color:var(--acc);animation:sp 1s linear infinite}
@@ -24529,6 +24543,7 @@ table.prev th{color:var(--acc)}
   <div class="rgrid" id="serGrid"></div>
 </div><div class="df"><button id="serZip" disabled>⬇ Descargar ZIP</button><button class="pri" id="serGo">Generar serie</button></div></dialog>
 
+<div id="ctx"></div>
 <div id="busy"><div class="spin"></div><div id="busyMsg">Trabajando…</div></div>
 <div id="toast"></div>
 
@@ -24633,7 +24648,7 @@ function loadProject(p,cb){restoring=true;W=p.W;H=p.H;fit();canvas.loadFromJSON(
 function fontSpecs(objs){const s=new Set();(objs||canvas.getObjects()).forEach(o=>{if(isText(o))s.add(`${o.fontStyle==='italic'?'italic ':''}${o.fontWeight||'normal'} 40px "${o.fontFamily}"`);});return [...s];}
 function ensureFonts(objs){return Promise.all(fontSpecs(objs).map(f=>document.fonts.load(f).catch(()=>{})));}
 function refreshFonts(){fabric.util.clearFabricFontCache();canvas.getObjects().forEach(o=>{if(o.initDimensions){o.initDimensions();if(o.autofit)runAutofit(o);o.setCoords();}});canvas.requestRenderAll();}
-function preloadFonts(){return Promise.all(FONTS.flatMap(f=>['400','700','800','900'].map(w=>document.fonts.load(`${w} 40px "${f}"`).catch(()=>{}))));}
+function preloadFonts(){return Promise.all(FONTS.flatMap(f=>['400','600','700','800','900'].flatMap(w=>[document.fonts.load(`${w} 40px "${f}"`).catch(()=>{}),document.fonts.load(`italic ${w} 40px "${f}"`).catch(()=>{})])));}
 
 /* ---------- historial ---------- */
 let undoStack=[],redoStack=[],histTimer=null,saveTimer=null;
@@ -24801,9 +24816,62 @@ $('#layers').addEventListener('dragstart',e=>{const r=e.target.closest('.layer')
 $('#layers').addEventListener('dragover',e=>{const r=e.target.closest('.layer');if(!r||dragIdx<0)return;e.preventDefault();document.querySelectorAll('#layers .layer.over').forEach(x=>x.classList.remove('over'));r.classList.add('over');});
 $('#layers').addEventListener('dragend',()=>{dragIdx=-1;document.querySelectorAll('#layers .layer').forEach(x=>x.classList.remove('over','dragging'));});
 $('#layers').addEventListener('drop',e=>{const r=e.target.closest('.layer');if(!r||dragIdx<0)return;e.preventDefault();const o=canvas.getObjects()[dragIdx];const ti=+r.dataset.i;dragIdx=-1;if(o&&!isNaN(ti)){canvas.moveTo(o,ti);canvas.setActiveObject(o);canvas.requestRenderAll();pushHistory();renderLayers();renderProps();}});
+
+/* ---------- menú de clic derecho ---------- */
+let clip=null,clipStyle=null,ctxPoint=null,pendingPaste=false;const CLIPMARK='diseno-centro-clip:';
+const STYLE_KEYS_TEXT=['fontFamily','fontWeight','fontStyle','fontSize','fill','stroke','strokeWidth','outerWidth','outerColor','extrude','extrudeColor','dropShadow','charSpacing','lineHeight','textAlign','opacity'];
+const STYLE_KEYS_SHAPE=['fill','stroke','strokeWidth','rx','ry','opacity'];
+function copySel(){const list=canvas.getActiveObjects().filter(o=>!o.temp);if(!list.length)return false;clip={id:Date.now(),objs:list.map(o=>{const j=o.toObject(EXTRA);if(o.group){const m=o.calcTransformMatrix(),d=fabric.util.qrDecompose(m);const c=o.getCenterPoint();j.angle=d.angle;j.scaleX=d.scaleX;j.scaleY=d.scaleY;const pt=c;j.__center=[pt.x,pt.y];}else{const c=o.getCenterPoint();j.__center=[c.x,c.y];}return j;})};try{navigator.clipboard.writeText(CLIPMARK+clip.id).catch(()=>{});}catch(e){}toast(list.length>1?`${list.length} capas copiadas`:'Copiado');return true;}
+function pasteClip(at){if(!clip)return toast('No hay nada copiado');const objs=JSON.parse(JSON.stringify(clip.objs));fabric.util.enlivenObjects(objs,list=>{canvas.discardActiveObject();const cs=objs.map(o=>o.__center);const cx=cs.reduce((a,c)=>a+c[0],0)/cs.length,cy=cs.reduce((a,c)=>a+c[1],0)/cs.length;
+  list.forEach((o,i)=>{const c=cs[i];const nx=at?at.x+(c[0]-cx):c[0]+30,ny=at?at.y+(c[1]-cy):c[1]+30;o.setPositionByOrigin(new fabric.Point(nx,ny),'center','center');o.setCoords();canvas.add(o);});
+  if(list.length===1)canvas.setActiveObject(list[0]);else canvas.setActiveObject(new fabric.ActiveSelection(list,{canvas}));canvas.requestRenderAll();clip.objs.forEach(j=>{j.__center=[j.__center[0]+30,j.__center[1]+30];});});}
+function copyStyle(){const o=canvas.getActiveObject();if(!o||o.type==='activeSelection')return;const keys=isText(o)?STYLE_KEYS_TEXT:STYLE_KEYS_SHAPE;clipStyle={text:isText(o),props:{}};keys.forEach(k=>{const v=o[k];clipStyle.props[k]=(v&&v.toObject)?v.toObject():v;});toast('Estilo copiado');}
+function pasteStyle(){if(!clipStyle)return toast('Primero copia un estilo');const list=canvas.getActiveObjects();if(!list.length)return;list.forEach(o=>{const keys=Object.keys(clipStyle.props).filter(k=>isText(o)?STYLE_KEYS_TEXT.includes(k):STYLE_KEYS_SHAPE.includes(k));keys.forEach(k=>{let v=clipStyle.props[k];if(v&&typeof v==='object'&&v.colorStops)v=new fabric.Gradient(v);if(isImg(o)&&k!=='opacity')return;o.set(k,v);});if(o.initDimensions){o.initDimensions();if(o.autofit){o.baseFont=o.fontSize;runAutofit(o);}}o.setCoords();});canvas.requestRenderAll();pushHistory();renderProps();toast('Estilo pegado');}
+function hideCtx(){$('#ctx').classList.remove('show');}
+function ctxItem(ic,label,act,k,cls){return `<div class="it ${cls||''}" data-c="${act}"><span class="ic">${ic}</span>${label}${k?`<span class="k">${k}</span>`:''}</div>`;}
+function ctxSub(ic,label,inner){return `<div class="it"><span class="ic">${ic}</span>${label}<span class="ar">›</span><div class="sub">${inner}</div></div>`;}
+function showCtx(x,y){const o=canvas.getActiveObject();const m=$('#ctx');let h='';
+  if(o){const multi=o.type==='activeSelection';
+    h+=ctxItem('⧉','Copiar','copy','Ctrl+C')+(!multi?ctxItem('🖌','Copiar el estilo','cstyle','Ctrl+Alt+C'):'')+ctxItem('📋','Pegar','paste','Ctrl+V',clip?'':'dis')+ctxItem('🎨','Pegar el estilo','pstyle','Ctrl+Alt+V',clipStyle?'':'dis')+ctxItem('➕','Duplicar','dup','Ctrl+D')+ctxItem('🗑','Eliminar','delete','Supr');
+    h+='<div class="sep"></div>'+ctxSub('🗂','Capa',ctxItem('⏫','Traer al frente','front')+ctxItem('🔼','Subir','fwd')+ctxItem('🔽','Bajar','bwd')+ctxItem('⏬','Enviar al fondo','back'))+ctxSub('📐','Alinear a la página',ctxItem('⇤','Izquierda','al-l')+ctxItem('↔','Centro','al-ch')+ctxItem('⇥','Derecha','al-r')+ctxItem('⤒','Arriba','al-t')+ctxItem('↕','En medio','al-cv')+ctxItem('⤓','Abajo','al-b'));
+    if(!multi){
+      if(isText(o))h+='<div class="sep"></div>'+ctxItem('✏️','Editar texto','edittext')+ctxSub('✨','Estilo rápido',Object.entries(STYLES).map(([k2,st])=>ctxItem('A',st.label,'style:'+k2)).join(''));
+      if(isImg(o)||o.placeholder)h+='<div class="sep"></div>'+ctxItem('🖼',o.placeholder?'Poner imagen':'Cambiar imagen','img-replace')+(isImg(o)?ctxItem('⛶','Llenar todo el lienzo','fillcanvas'):'');
+      if(isImg(o))h+=ctxItem('🩹','Corregir zona con IA','img-zone','','ai')+ctxItem('🪄','Editar con IA','img-edit','','ai')+ctxItem('✂','Quitar fondo con IA','img-rmbg','','ai');
+      h+='<div class="sep"></div>'+ctxItem('🏷','Campo para serie…','campo',o.campo?esc(o.campo):'')+ctxItem('✎','Renombrar capa…','rename')+ctxItem('🙈','Ocultar','hide')+ctxItem('🔒','Bloquear','lock');
+    }
+  }else{
+    h+=ctxItem('📋','Pegar aquí','pastehere','Ctrl+V',clip?'':'dis')+'<div class="sep"></div>'+ctxItem('T','Agregar texto aquí','addtext')+ctxItem('🖼','Agregar imagen','addimg')+ctxItem('⬚','Espacio de imagen aquí','addslot')+'<div class="sep"></div>'+ctxItem('✨','Diseño completo con IA','aidesign','','ai')+ctxItem('🧩','Elemento PNG con IA','aielem','','ai')+'<div class="sep"></div>'+ctxItem('📐','Cambiar tamaño…','resize')+ctxItem('↶','Deshacer','undo','Ctrl+Z')+ctxItem('↷','Rehacer','redo','Ctrl+Y');
+  }
+  m.innerHTML=h;m.classList.add('show');const r=m.getBoundingClientRect();const vw=innerWidth,vh=innerHeight;
+  m.style.left=Math.min(x,vw-r.width-8)+'px';m.style.top=Math.max(8,Math.min(y,vh-r.height-8))+'px';
+  if(x+r.width+230>vw)m.querySelectorAll('.sub').forEach(sb=>sb.classList.add('left'));
+}
+canvas.upperCanvasEl.parentElement.addEventListener('contextmenu',e=>{e.preventDefault();if(zone)return;const t=canvas.findTarget(e,false);ctxPoint=canvas.getPointer(e);
+  if(t){if(!canvas.getActiveObjects().includes(t))canvas.setActiveObject(t);}else canvas.discardActiveObject();canvas.requestRenderAll();showCtx(e.clientX,e.clientY);},true);
+document.addEventListener('mousedown',e=>{if(!e.target.closest('#ctx'))hideCtx();});
+window.addEventListener('blur',hideCtx);$('#stage').addEventListener('scroll',hideCtx);
+$('#ctx').addEventListener('click',e=>{const it=e.target.closest('[data-c]');if(!it||it.classList.contains('dis'))return;const c=it.dataset.c;hideCtx();const o=canvas.getActiveObject();
+  if(c.startsWith('style:')){applyStyle(o,c.slice(6));canvas.requestRenderAll();pushHistory();renderProps();return;}
+  switch(c){
+    case 'copy':copySel();break;case 'paste':pasteClip(null);break;case 'pastehere':pasteClip(ctxPoint);break;
+    case 'cstyle':copyStyle();break;case 'pstyle':pasteStyle();break;
+    case 'edittext':canvas.setActiveObject(o);o.enterEditing();o.selectAll();canvas.requestRenderAll();break;
+    case 'fillcanvas':fitCover(o,W,H);o.set({left:0,top:0,angle:0,originX:'left',originY:'top'});o.setCoords();canvas.requestRenderAll();pushHistory();break;
+    case 'campo':{const v=prompt('Campo para diseños en serie (nombre de la columna del Excel):',o.campo||'');if(v!==null){o.campo=v.trim();canvas.requestRenderAll();pushHistory();renderLayers();renderProps();}break;}
+    case 'rename':{const v=prompt('Nombre de la capa:',o.name||'');if(v!==null){o.name=v;pushHistory();renderLayers();renderProps();}break;}
+    case 'hide':o.visible=false;canvas.discardActiveObject();canvas.requestRenderAll();pushHistory();renderLayers();break;
+    case 'addtext':{const t=newText('ESCRIBE AQUÍ',{style:'blanco3d',width:W*0.6,fontSize:Math.round(W*0.07)});t.setPositionByOrigin(ctxPoint,'center','center');addAndSelect(t);break;}
+    case 'addimg':pickImageFor(null);break;
+    case 'addslot':{const ph=new fabric.Placeholder({left:ctxPoint.x-W*0.15,top:ctxPoint.y-W*0.15,width:W*0.3,height:W*0.3,name:'Imagen',campo:''});addAndSelect(ph);break;}
+    case 'aidesign':$('#aDesign').click();break;case 'aielem':$('#aElem').click();break;
+    case 'resize':$('#bResize').click();break;case 'undo':undo();break;case 'redo':redo();break;
+    default:doAct(c);
+  }});
+
 /* ---------- teclado, pegar, arrastrar ---------- */
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'&&zone){endZone();return;}
+  if(e.key==='Escape'){hideCtx();if(zone){endZone();return;}}
   const ae=document.activeElement;const k=e.key.toLowerCase(),mod=e.ctrlKey||e.metaKey;const o=canvas.getActiveObject();
   if(document.querySelector('dialog[open]'))return;
   if(mod&&(k==='z'||k==='y')&&!(o&&o.isEditing)){e.preventDefault();if(ae&&ae!==document.body)ae.blur();(k==='y'||e.shiftKey)?redo():undo();return;}
@@ -24811,11 +24879,16 @@ document.addEventListener('keydown',e=>{
   if(mod&&k==='z'){e.preventDefault();e.shiftKey?redo():undo();}
   else if(mod&&k==='y'){e.preventDefault();redo();}
   else if(mod&&k==='d'){e.preventDefault();doAct('dup');}
+  else if(mod&&e.altKey&&k==='c'){e.preventDefault();copyStyle();}
+  else if(mod&&e.altKey&&k==='v'){e.preventDefault();pasteStyle();}
+  else if(mod&&k==='c'&&o){if(copySel())e.preventDefault();}
+  else if(mod&&k==='v'){pendingPaste=true;setTimeout(()=>{if(pendingPaste){pendingPaste=false;if(clip)pasteClip(null);}},150);}
+  else if(mod&&k==='x'&&o){if(copySel()){e.preventDefault();doAct('delete');}}
   else if(mod&&k==='s'){e.preventDefault();saveProjectFile();}
   else if((e.key==='Delete'||e.key==='Backspace')&&o){e.preventDefault();doAct('delete');}
   else if(e.key.startsWith('Arrow')&&o){e.preventDefault();const d=e.shiftKey?10:1;if(e.key==='ArrowLeft')o.left-=d;if(e.key==='ArrowRight')o.left+=d;if(e.key==='ArrowUp')o.top-=d;if(e.key==='ArrowDown')o.top+=d;o.setCoords();canvas.requestRenderAll();pushHistory();}
 });
-document.addEventListener('paste',async e=>{const ae=document.activeElement;if(ae&&/INPUT|TEXTAREA/.test(ae.tagName))return;const it=[...(e.clipboardData||{}).items||[]].find(i=>i.type.startsWith('image/'));if(!it)return;e.preventDefault();try{await addImageFromURL(await fileToDataURL(it.getAsFile()),'Imagen pegada');}catch(err){alertErr(err)}});
+document.addEventListener('paste',async e=>{const ae=document.activeElement;if(ae&&/INPUT|TEXTAREA/.test(ae.tagName))return;pendingPaste=false;const ao=canvas.getActiveObject();if(ao&&ao.isEditing)return;const txt=(e.clipboardData&&e.clipboardData.getData('text'))||'';const hasImg=[...((e.clipboardData||{}).items||[])].some(i=>i.type.startsWith('image/'));if(clip&&(txt===CLIPMARK+clip.id||!hasImg)){e.preventDefault();pasteClip(null);return;}const it=[...(e.clipboardData||{}).items||[]].find(i=>i.type.startsWith('image/'));if(!it)return;e.preventDefault();try{await addImageFromURL(await fileToDataURL(it.getAsFile()),'Imagen pegada');}catch(err){alertErr(err)}});
 $('#stage').addEventListener('dragover',e=>e.preventDefault());
 $('#stage').addEventListener('drop',async e=>{e.preventDefault();for(const f of e.dataTransfer.files){if(f.type.startsWith('image/')){try{await addImageFromURL(await fileToDataURL(f),f.name.replace(/\.[^.]+$/,''));}catch(err){alertErr(err)}}else if(/\.json$/i.test(f.name))openProjectFile(f);else if(/\.psd$/i.test(f.name))importPSD(f);}});
 
@@ -24832,58 +24905,146 @@ $('#fileOpen').onchange=async e=>{const f=e.target.files[0];if(!f)return;if(/\.p
 async function openProjectFile(f){try{const p=JSON.parse(await f.text());if(p.app!=='estudio-ia')throw new Error('Este archivo no es un proyecto de Estudio IA');loadProject(p,()=>{undoStack=[];pushHistory();});}catch(err){alertErr(err)}}
 
 /* ---------- plantillas ---------- */
-const BUILTIN=[{id:'b-neg',name:'Flyer de negocio',ico:'🌮',make:tplNegocio},{id:'b-dep',name:'Resultado deportivo',ico:'⚽',make:tplDeportes},{id:'b-fra',name:'Post de frase / reflexión',ico:'💬',make:tplFrase}];
+
+/* plantillas incluidas: build(add) crea las capas */
+const PH=(l,t,w,h,name,campo)=>new fabric.Placeholder({left:l,top:t,width:w,height:h,name,campo});
+const RC=(l,t,w,h,fill,o={})=>new fabric.Rect(Object.assign({left:l,top:t,width:w,height:h,fill,name:'Forma'},o));
+const TX=(text,o)=>newText(text,o);
+const GOLD=['#a86b00','#ffe27a','#a86b00'];
+const BUILTIN=[
+ {id:'b-neg',name:'Flyer de negocio',ico:'🌮',w:1080,h:1350,bg:'#0b0000',build:add=>{
+  add(PH(0,330,1080,820,'Foto del negocio','foto'));
+  add(RC(0,0,1080,400,makeGrad(['#5a0000','#1a0000']),{name:'Fondo superior'}));
+  add(RC(0,392,1080,12,makeGrad(GOLD,true),{name:'Línea dorada'}));
+  add(TX('Taquería El Pastorcito',{left:40,top:32,width:660,fontSize:52,fontFamily:'Poppins',fontWeight:'800',fontStyle:'italic',style:'simple',name:'Nombre del negocio',campo:'negocio',autofit:true}));
+  add(TX('AQUÍ TE ESPERA',{left:40,top:108,width:660,fontSize:104,style:'blanco3d',name:'Título 1',campo:'titulo1',autofit:true}));
+  add(TX('EL ANTOJO',{left:40,top:215,width:660,fontSize:158,style:'oro3d',name:'Título 2',campo:'titulo2',autofit:true}));
+  add(PH(730,40,310,310,'Logo','logo'));
+  add(RC(110,1030,560,100,makeGrad(['#ff2a1a','#9a0000']),{rx:50,ry:50,stroke:'#ffd34a',strokeWidth:5,name:'Botón'}));
+  add(TX('¡Te esperamos!',{left:120,top:1044,width:540,fontSize:62,fontFamily:'Poppins',fontWeight:'800',fontStyle:'italic',style:'simple',name:'Frase',campo:'frase',autofit:true}));
+  add(RC(0,1150,1080,200,'#0a0a0a',{name:'Franja inferior'}));
+  add(RC(538,1172,4,156,'#e0a100',{name:'Separador'}));
+  [['MATRIZ','Calle 12 Norte #1418\nCol. Los Frailes','238 103 5083 | 238 275 9530',40,'suc1'],['SUCURSAL','Calzada Las Palmas #210-B\nCol. Tepeyac','238 118 8175',580,'suc2']].forEach(([t,d,tel,x,k])=>{
+    add(TX(t,{left:x,top:1160,width:470,fontSize:54,textAlign:'left',style:'amarillo',outerWidth:0,extrude:0,name:t+' (título)',campo:k+'_titulo',autofit:true}));
+    add(TX(d,{left:x,top:1226,width:470,fontSize:30,fontFamily:'Poppins',fontWeight:'700',textAlign:'left',fill:'#ffffff',lineHeight:1.1,name:t+' (dirección)',campo:k+'_dir',autofit:true,maxLines:2}));
+    add(TX('☎ '+tel,{left:x,top:1302,width:470,fontSize:31,fontFamily:'Poppins',fontWeight:'800',textAlign:'left',fill:'#ffffff',name:t+' (teléfono)',campo:k+'_tel',autofit:true}));});}},
+ {id:'b-menu',name:'Menú de restaurante',ico:'📋',w:1080,h:1350,bg:'#1a0a05',build:add=>{
+  add(PH(0,0,1080,1350,'Fondo (madera, fuego)','fondo'));
+  add(RC(0,0,1080,1350,'rgba(0,0,0,0.5)',{name:'Oscurecer'}));
+  add(PH(40,30,300,300,'Logo','logo'));
+  add(TX('Menú',{left:360,top:60,width:680,fontSize:190,fontFamily:'Pacifico',style:'blanco3d',lineHeight:1,name:'Título',campo:'titulo',autofit:true}));
+  [['TACOS','Pastor  $15\nÁrabe  $18\nChuleta  $20\nCampechano  $20\nCombinado  $22',40,380,1],['TORTAS','Pastor  $45\nÁrabe  $50\nMilanesa  $55\nCubana  $70',560,380,2],['ALAMBRES','Alambre  $95\nCombinado  $110\nÁrabe  $105\nPastor  $100',40,830,3],['BEBIDAS','Agua fresca  $25\nRefresco  $25\nJarritos  $22\nCafé  $20',560,830,4]].forEach(([t,l,x,y,n])=>{
+    add(RC(x,y,300,64,makeGrad(['#ffd400','#ffa600']),{rx:12,ry:12,skewX:-10,name:'Etiqueta '+t}));
+    add(TX(t,{left:x+18,top:y+5,width:270,fontSize:50,fill:'#7a0000',textAlign:'left',name:t+' (título)',campo:'sec'+n+'_titulo',autofit:true}));
+    add(TX(l,{left:x+8,top:y+86,width:270,fontSize:30,fontFamily:'Poppins',fontWeight:'700',fontStyle:'italic',textAlign:'left',fill:'#ffffff',lineHeight:1.3,style:'simple',name:t+' (lista)',campo:'sec'+n+'_lista',autofit:true,maxLines:8}));
+    add(PH(x+285,y+86,200,200,'Foto '+t,'sec'+n+'_foto'));});
+  add(RC(0,1262,1080,88,'#b30000',{name:'Franja inferior'}));
+  add(TX('Calle 12 Norte #1418 · Col. Los Frailes · ☎ 238 103 5083',{left:40,top:1286,width:1000,fontSize:32,fontFamily:'Poppins',fontWeight:'700',fill:'#ffffff',name:'Dirección',campo:'direccion',autofit:true}));}},
+ {id:'b-promo',name:'Promoción / oferta',ico:'🔥',w:1080,h:1080,bg:'#ffcc00',build:add=>{
+  add(RC(0,0,1080,1080,makeGrad(['#ffe14d','#ff9d00']),{name:'Fondo'}));
+  add(PH(240,170,600,500,'Foto del producto','producto'));
+  add(RC(-120,690,1320,240,'#e10600',{angle:-7,name:'Banda roja'}));
+  add(TX('¡PROMOCIÓN!',{left:40,top:30,width:1000,fontSize:130,style:'rojo',extrude:9,extrudeColor:'#7a0000',name:'Título',campo:'titulo',autofit:true}));
+  add(TX('2x1',{left:40,top:705,width:440,fontSize:230,style:'blanco3d',extrude:12,extrudeColor:'#5a0000',angle:-7,name:'Oferta',campo:'oferta',autofit:true}));
+  add(TX('en tacos al pastor',{left:470,top:770,width:540,fontSize:50,fontFamily:'Poppins',fontWeight:'800',fontStyle:'italic',textAlign:'left',fill:'#ffffff',style:'simple',angle:-7,name:'Detalle',campo:'detalle',autofit:true,maxLines:2}));
+  add(TX('Solo martes · Taquería El Pastorcito',{left:40,top:990,width:1000,fontSize:40,fontFamily:'Poppins',fontWeight:'800',fill:'#3a1d00',name:'Vigencia',campo:'vigencia',autofit:true}));}},
+ {id:'b-dep',name:'Resultado deportivo',ico:'⚽',w:1080,h:1350,bg:'#06122e',build:add=>{
+  add(PH(0,0,1080,1350,'Fondo (estadio)','fondo'));
+  add(RC(0,0,1080,1350,makeGrad(['rgba(4,10,40,0.55)','rgba(4,10,40,0.97)']),{name:'Oscurecer'}));
+  add(RC(0,0,1080,150,makeGrad(['#d40000','#760000']),{name:'Banda superior'}));
+  add(TX('CENTRO DE DEPORTES',{left:40,top:36,width:1000,fontSize:72,style:'simple',name:'Página',campo:'pagina',autofit:true}));
+  add(TX('RESULTADO FINAL',{left:40,top:185,width:1000,fontSize:120,style:'oro3d',name:'Título',campo:'titulo',autofit:true}));
+  add(TX('LIGA MUNICIPAL • JORNADA 8',{left:40,top:345,width:1000,fontSize:40,fontFamily:'Montserrat',fontWeight:'800',fill:'#ffffff',charSpacing:80,name:'Liga',campo:'liga',autofit:true}));
+  add(PH(120,430,320,320,'Escudo local','escudo_local'));add(PH(640,430,320,320,'Escudo visitante','escudo_visitante'));
+  add(TX('ÁGUILAS FC',{left:60,top:772,width:440,fontSize:58,style:'simple',outerWidth:4,outerColor:'#000000',name:'Equipo local',campo:'local',autofit:true,maxLines:2}));
+  add(TX('HALCONES',{left:580,top:772,width:440,fontSize:58,style:'simple',outerWidth:4,outerColor:'#000000',name:'Equipo visitante',campo:'visitante',autofit:true,maxLines:2}));
+  add(TX('3',{left:130,top:885,width:300,fontSize:250,style:'oro3d',name:'Goles local',campo:'goles_local'}));
+  add(TX('-',{left:440,top:905,width:200,fontSize:200,style:'blanco3d',name:'Guion'}));
+  add(TX('1',{left:650,top:885,width:300,fontSize:250,style:'oro3d',name:'Goles visitante',campo:'goles_visitante'}));
+  add(RC(0,1215,1080,135,'#000000',{opacity:0.85,name:'Franja inferior'}));
+  add(TX('Domingo 9 de noviembre • Unidad Deportiva',{left:40,top:1258,width:1000,fontSize:38,fontFamily:'Montserrat',fontWeight:'700',fill:'#ffffff',name:'Fecha y lugar',campo:'fecha',autofit:true}));}},
+ {id:'b-prox',name:'Próximo partido',ico:'🏟',w:1080,h:1350,bg:'#04102a',build:add=>{
+  add(PH(0,0,1080,1350,'Fondo (estadio)','fondo'));
+  add(RC(0,0,1080,1350,makeGrad(['rgba(2,8,30,0.6)','rgba(2,8,30,0.97)']),{name:'Oscurecer'}));
+  add(TX('PRÓXIMO PARTIDO',{left:40,top:70,width:1000,fontSize:120,style:'oro3d',name:'Título',campo:'titulo',autofit:true}));
+  add(TX('LIGA MUNICIPAL • JORNADA 9',{left:40,top:232,width:1000,fontSize:40,fontFamily:'Montserrat',fontWeight:'800',fill:'#ffffff',charSpacing:80,name:'Liga',campo:'liga',autofit:true}));
+  add(PH(100,380,340,340,'Escudo local','escudo_local'));add(PH(640,380,340,340,'Escudo visitante','escudo_visitante'));
+  add(TX('VS',{left:440,top:470,width:200,fontSize:150,style:'rojo',extrude:8,extrudeColor:'#5a0000',name:'VS'}));
+  add(TX('ÁGUILAS FC',{left:60,top:745,width:440,fontSize:56,style:'simple',outerWidth:4,outerColor:'#000000',name:'Equipo local',campo:'local',autofit:true,maxLines:2}));
+  add(TX('HALCONES',{left:580,top:745,width:440,fontSize:56,style:'simple',outerWidth:4,outerColor:'#000000',name:'Equipo visitante',campo:'visitante',autofit:true,maxLines:2}));
+  add(RC(140,910,800,250,'rgba(0,0,0,0.55)',{rx:30,ry:30,stroke:'#ffcc00',strokeWidth:3,name:'Cuadro de datos'}));
+  add(TX('SÁBADO 15 DE NOVIEMBRE',{left:160,top:935,width:760,fontSize:62,fill:'#ffffff',name:'Fecha',campo:'fecha',autofit:true}));
+  add(TX('4:00 PM',{left:160,top:1020,width:760,fontSize:100,style:'amarillo',name:'Hora',campo:'hora',autofit:true}));
+  add(TX('📍 Unidad Deportiva Tehuacán',{left:40,top:1200,width:1000,fontSize:40,fontFamily:'Poppins',fontWeight:'700',fill:'#ffffff',style:'simple',name:'Lugar',campo:'lugar',autofit:true}));
+  add(TX('PASIÓN DEPORTIVA',{left:40,top:1275,width:1000,fontSize:42,fill:'#ffcc00',charSpacing:120,name:'Página',campo:'pagina',autofit:true}));}},
+ {id:'b-mvp',name:'Jugador del partido',ico:'🏅',w:1080,h:1350,bg:'#0b0b12',build:add=>{
+  add(RC(0,0,1080,1350,makeGrad(['#1d2b64','#0b0b12']),{name:'Fondo'}));
+  add(PH(140,150,800,820,'Foto del jugador','foto'));
+  add(RC(0,700,1080,650,makeGrad(['rgba(11,11,18,0)','rgba(11,11,18,1)']),{name:'Degradado'}));
+  add(TX('JUGADOR DEL PARTIDO',{left:40,top:40,width:1000,fontSize:96,style:'oro3d',name:'Título',campo:'titulo',autofit:true}));
+  add(TX('JUAN PÉREZ',{left:40,top:870,width:1000,fontSize:140,style:'blanco3d',name:'Nombre',campo:'nombre',autofit:true}));
+  add(TX('Águilas FC · 2 goles',{left:40,top:1045,width:1000,fontSize:48,fontFamily:'Poppins',fontWeight:'800',fill:'#ffcc00',style:'simple',name:'Detalle',campo:'detalle',autofit:true}));
+  add(RC(0,1230,1080,120,'#c40000',{name:'Franja inferior'}));
+  add(TX('PASIÓN DEPORTIVA',{left:40,top:1252,width:1000,fontSize:64,fill:'#ffffff',name:'Página',campo:'pagina',autofit:true}));}},
+ {id:'b-news',name:'Noticia / última hora',ico:'📰',w:1080,h:1350,bg:'#111111',build:add=>{
+  add(PH(0,0,1080,880,'Foto de la noticia','foto'));
+  add(RC(0,800,660,110,'#d40000',{name:'Banda roja'}));
+  add(TX('ÚLTIMA HORA',{left:40,top:812,width:600,fontSize:82,textAlign:'left',fill:'#ffffff',name:'Etiqueta',campo:'etiqueta',autofit:true}));
+  add(RC(0,910,1080,440,'#ffffff',{name:'Panel blanco'}));
+  add(TX('Se registra fuerte lluvia en el centro de Tehuacán; reportan encharcamientos',{left:50,top:940,width:980,fontSize:60,fontFamily:'Montserrat',fontWeight:'900',textAlign:'left',fill:'#111111',lineHeight:1.1,name:'Titular',campo:'titular',autofit:true,maxLines:4}));
+  add(RC(50,1215,120,8,'#d40000',{name:'Línea'}));
+  add(TX('Centro Noticias · 9 de noviembre de 2026',{left:50,top:1245,width:720,fontSize:30,fontFamily:'Poppins',fontWeight:'600',textAlign:'left',fill:'#555555',name:'Fuente y fecha',campo:'fuente',autofit:true}));
+  add(PH(820,1200,210,120,'Logo','logo'));}},
+ {id:'b-aviso',name:'Aviso / comunicado',ico:'📢',w:1080,h:1350,bg:'#f4f1ea',build:add=>{
+  add(RC(0,0,1080,220,makeGrad(['#7a0000','#b30000']),{name:'Banda superior'}));
+  add(PH(50,30,160,160,'Logo','logo'));
+  add(TX('AVISO IMPORTANTE',{left:240,top:58,width:800,fontSize:100,textAlign:'left',fill:'#ffffff',style:'simple',name:'Título',campo:'titulo',autofit:true}));
+  add(TX('Se informa a la ciudadanía que el próximo lunes no habrá servicio de agua en las colonias Centro y Los Frailes de 9:00 a 15:00 horas por trabajos de mantenimiento.\n\nAgradecemos su comprensión.',{left:90,top:300,width:900,fontSize:42,fontFamily:'Poppins',fontWeight:'600',textAlign:'left',fill:'#222222',lineHeight:1.35,name:'Texto',campo:'texto',autofit:true,maxLines:14}));
+  add(RC(90,1175,900,4,'#c9a227',{name:'Línea dorada'}));
+  add(RC(0,1220,1080,130,'#7a0000',{name:'Franja inferior'}));
+  add(TX('Informes: 238 000 0000 · Calle Principal #100',{left:40,top:1262,width:1000,fontSize:34,fontFamily:'Poppins',fontWeight:'600',fill:'#ffffff',name:'Contacto',campo:'contacto',autofit:true}));}},
+ {id:'b-evento',name:'Evento (historia)',ico:'🎉',w:1080,h:1920,bg:'#120022',build:add=>{
+  add(PH(0,0,1080,1920,'Fondo','fondo'));
+  add(RC(0,0,1080,1920,makeGrad(['rgba(18,0,34,0.35)','rgba(18,0,34,0.97)']),{name:'Oscurecer'}));
+  add(TX('GRAN BAILE',{left:40,top:200,width:1000,fontSize:200,style:'oro3d',lineHeight:0.95,name:'Título',campo:'titulo',autofit:true,maxLines:2}));
+  add(TX('con el Grupo Invitado',{left:40,top:470,width:1000,fontSize:64,fontFamily:'Poppins',fontWeight:'800',fontStyle:'italic',fill:'#ffffff',style:'simple',name:'Artista',campo:'artista',autofit:true,maxLines:2}));
+  add(PH(190,640,700,760,'Foto del artista','foto'));
+  add(RC(190,1470,700,130,makeGrad(['#ff2a1a','#9a0000']),{rx:65,ry:65,stroke:'#ffd34a',strokeWidth:5,name:'Botón'}));
+  add(TX('SÁBADO 22 · 9 PM',{left:200,top:1492,width:680,fontSize:80,fill:'#ffffff',name:'Fecha',campo:'fecha',autofit:true}));
+  add(TX('📍 Salón Jardín · Tehuacán',{left:40,top:1660,width:1000,fontSize:46,fontFamily:'Poppins',fontWeight:'700',fill:'#ffffff',style:'simple',name:'Lugar',campo:'lugar',autofit:true}));
+  add(TX('Boletos: 238 000 0000',{left:40,top:1760,width:1000,fontSize:46,fontFamily:'Poppins',fontWeight:'800',fill:'#ffcc00',style:'simple',name:'Boletos',campo:'boletos',autofit:true}));}},
+ {id:'b-drone',name:'Servicio con dron',ico:'🚁',w:1080,h:1350,bg:'#071a2b',build:add=>{
+  add(PH(0,0,1080,1350,'Foto aérea','foto'));
+  add(RC(0,0,1080,1350,makeGrad(['rgba(4,20,40,0.15)','rgba(4,20,40,0.97)']),{name:'Oscurecer'}));
+  add(PH(40,40,220,220,'Logo','logo'));
+  add(TX('TOMAS AÉREAS',{left:40,top:740,width:1000,fontSize:150,style:'plata',name:'Título',campo:'titulo',autofit:true}));
+  add(TX('Videos y fotos con dron para tu negocio, eventos y bodas',{left:90,top:930,width:900,fontSize:46,fontFamily:'Poppins',fontWeight:'700',fill:'#ffffff',style:'simple',lineHeight:1.2,name:'Detalle',campo:'detalle',autofit:true,maxLines:3}));
+  add(RC(240,1120,600,110,makeGrad(['#22b5ff','#0067c2']),{rx:55,ry:55,name:'Botón'}));
+  add(TX('☎ 238 000 0000',{left:250,top:1142,width:580,fontSize:56,fontFamily:'Poppins',fontWeight:'800',fill:'#ffffff',name:'Teléfono',campo:'telefono',autofit:true}));
+  add(TX('MR. DRONE',{left:40,top:1265,width:1000,fontSize:44,fill:'#9fdcff',charSpacing:200,name:'Página',campo:'pagina',autofit:true}));}},
+ {id:'b-fra',name:'Post de frase / reflexión',ico:'💬',w:1080,h:1080,bg:'#1b1b1b',build:add=>{
+  add(PH(0,0,1080,1080,'Fondo','fondo'));
+  add(RC(0,0,1080,1080,'rgba(0,0,0,0.45)',{name:'Oscurecer'}));
+  add(TX('“La vida no se trata de esperar a que pase la tormenta, sino de aprender a bailar bajo la lluvia.”',{left:90,top:280,width:900,fontSize:66,fontFamily:'Playfair Display',fontWeight:'700',fontStyle:'italic',style:'simple',lineHeight:1.2,name:'Frase',campo:'frase',autofit:true,maxLines:7}));
+  add(RC(440,880,200,6,'#ffd84a',{name:'Línea'}));
+  add(TX('REFLEXIONES',{left:90,top:910,width:900,fontSize:40,fontFamily:'Montserrat',fontWeight:'800',fill:'#ffd84a',charSpacing:200,name:'Página',campo:'pagina',autofit:true}));}}
+];
+const tplThumbs={};let thumbsBusy=false;
+function loadBuiltin(t){resetCanvas(t.w,t.h,t.bg);t.build(o=>canvas.add(o));afterTpl();}
+async function makeThumbs(){if(thumbsBusy)return;thumbsBusy=true;try{await preloadFonts();fabric.util.clearFabricFontCache();for(const t of BUILTIN){if(tplThumbs[t.id])continue;const el=document.createElement('canvas');const sc=new fabric.StaticCanvas(el,{width:t.w,height:t.h,backgroundColor:t.bg,enableRetinaScaling:false,renderOnAddRemove:false});const sw=W,sh=H;W=t.w;H=t.h;try{t.build(o=>sc.add(o));}finally{W=sw;H=sh;}sc.getObjects().forEach(o=>{if(o.autofit)runAutofit(o);});sc.renderAll();tplThumbs[t.id]=sc.toDataURL({format:'jpeg',quality:0.75,multiplier:260/t.w});sc.dispose();const img=document.querySelector(`#tplGrid [data-b="${t.id}"] .th`);if(img)img.innerHTML=`<img src="${tplThumbs[t.id]}">`;await new Promise(r=>setTimeout(r,0));}}finally{thumbsBusy=false;}}
+function tplNegocio(){loadBuiltin(BUILTIN[0]);}
+function tplDeportes(){loadBuiltin(BUILTIN.find(t=>t.id==='b-dep'));}
+function tplFrase(){loadBuiltin(BUILTIN.find(t=>t.id==='b-fra'));}
 $('#bTpl').onclick=openTemplates;
 async function openTemplates(){let mine=[];try{mine=await idb.tpls()||[];}catch(e){}
-  $('#tplGrid').innerHTML=BUILTIN.map(t=>`<div class="tcard" data-b="${t.id}"><div class="th">${t.ico}</div><div class="tn">${esc(t.name)}</div></div>`).join('')+mine.sort((a,b)=>b.id.localeCompare(a.id)).map(t=>`<div class="tcard" data-u="${esc(t.id)}"><div class="th"><img src="${t.thumb}"></div><div class="tn">⭐ ${esc(t.name)}</div><button class="del" data-del="${esc(t.id)}">✕</button></div>`).join('');
+  $('#tplGrid').innerHTML=BUILTIN.map(t=>`<div class="tcard" data-b="${t.id}"><div class="th">${tplThumbs[t.id]?`<img src="${tplThumbs[t.id]}">`:t.ico}</div><div class="tn">${t.ico} ${esc(t.name)}<br><span class="muted" style="font-size:10.5px">${t.w}×${t.h}</span></div></div>`).join('')+mine.sort((a,b)=>b.id.localeCompare(a.id)).map(t=>`<div class="tcard" data-u="${esc(t.id)}"><div class="th"><img src="${t.thumb}"></div><div class="tn">⭐ ${esc(t.name)}</div><button class="del" data-del="${esc(t.id)}">✕</button></div>`).join('');
   $('#tplGrid').onclick=async e=>{const del=e.target.closest('[data-del]');if(del){e.stopPropagation();if(confirm('¿Borrar esta plantilla?')){await idb.delTpl(del.dataset.del);openTemplates();}return;}
     const c=e.target.closest('.tcard');if(!c)return;if(canvas.getObjects().length&&!confirm('Se reemplazará el diseño actual. ¿Continuar?'))return;$('#dlgTpl').close();
-    if(c.dataset.b)BUILTIN.find(t=>t.id===c.dataset.b).make();else{const t=mine.find(x=>x.id===c.dataset.u);loadProject(t.project,()=>{undoStack=[];pushHistory();});}};
-  openDialog('dlgTpl');}
+    if(c.dataset.b)loadBuiltin(BUILTIN.find(t=>t.id===c.dataset.b));else{const t=mine.find(x=>x.id===c.dataset.u);loadProject(t.project,()=>{undoStack=[];pushHistory();});}};
+  openDialog('dlgTpl');makeThumbs();}
 $('#bSaveTpl').onclick=async()=>{const name=prompt('Nombre de la plantilla (ej. Resultados Pasión Deportiva):');if(!name)return;const thumb=withHidden(()=>canvas.toDataURL({format:'jpeg',quality:0.7,multiplier:260/(W*zoom)}));try{await idb.putTpl({id:'u'+Date.now(),name,thumb,project:project()});toast('Plantilla guardada ⭐');}catch(e){alertErr(e)}};
 function afterTpl(){canvas.discardActiveObject();canvas.requestRenderAll();ensureFonts().then(refreshFonts);undoStack=[];pushHistory();renderLayers();renderProps();}
-function tplNegocio(){resetCanvas(1080,1350,'#0b0000');const add=o=>canvas.add(o);
-  add(new fabric.Placeholder({left:0,top:330,width:1080,height:820,name:'Foto del negocio',campo:'foto'}));
-  add(new fabric.Rect({left:0,top:0,width:1080,height:400,fill:makeGrad(['#5a0000','#1a0000']),name:'Fondo superior'}));
-  add(new fabric.Rect({left:0,top:392,width:1080,height:12,fill:makeGrad(['#a86b00','#ffe27a','#a86b00'],true),name:'Línea dorada'}));
-  add(newText('Taquería El Pastorcito',{left:40,top:32,width:660,fontSize:52,fontFamily:'Poppins',fontWeight:'800',fontStyle:'italic',style:'simple',name:'Nombre del negocio',campo:'negocio',autofit:true}));
-  add(newText('AQUÍ TE ESPERA',{left:40,top:108,width:660,fontSize:104,style:'blanco3d',name:'Título 1',campo:'titulo1',autofit:true}));
-  add(newText('EL ANTOJO',{left:40,top:215,width:660,fontSize:158,style:'oro3d',name:'Título 2',campo:'titulo2',autofit:true}));
-  add(new fabric.Placeholder({left:730,top:40,width:310,height:310,name:'Logo',campo:'logo'}));
-  add(new fabric.Rect({left:110,top:1030,width:560,height:100,rx:50,ry:50,fill:makeGrad(['#ff2a1a','#9a0000']),stroke:'#ffd34a',strokeWidth:5,name:'Botón'}));
-  add(newText('¡Te esperamos!',{left:120,top:1044,width:540,fontSize:62,fontFamily:'Poppins',fontWeight:'800',fontStyle:'italic',style:'simple',name:'Frase',campo:'frase',autofit:true}));
-  add(new fabric.Rect({left:0,top:1150,width:1080,height:200,fill:'#0a0a0a',name:'Franja inferior'}));
-  add(new fabric.Rect({left:538,top:1172,width:4,height:156,fill:'#e0a100',name:'Separador'}));
-  [['MATRIZ','Calle 12 Norte #1418\nCol. Los Frailes','238 103 5083 | 238 275 9530',40,'suc1'],['SUCURSAL','Calzada Las Palmas #210-B\nCol. Tepeyac','238 118 8175',580,'suc2']].forEach(([t,d,tel,x,k])=>{
-    add(newText(t,{left:x,top:1160,width:470,fontSize:54,textAlign:'left',style:'amarillo',outerWidth:0,extrude:0,name:t+' (título)',campo:k+'_titulo',autofit:true}));
-    add(newText(d,{left:x,top:1226,width:470,fontSize:30,fontFamily:'Poppins',fontWeight:'700',textAlign:'left',fill:'#ffffff',lineHeight:1.1,name:t+' (dirección)',campo:k+'_dir',autofit:true,maxLines:2}));
-    add(newText('☎ '+tel,{left:x,top:1302,width:470,fontSize:31,fontFamily:'Poppins',fontWeight:'800',textAlign:'left',fill:'#ffffff',name:t+' (teléfono)',campo:k+'_tel',autofit:true}));
-  });
-  afterTpl();}
-function tplDeportes(){resetCanvas(1080,1350,'#06122e');const add=o=>canvas.add(o);
-  add(new fabric.Placeholder({left:0,top:0,width:1080,height:1350,name:'Fondo (estadio)',campo:'fondo'}));
-  add(new fabric.Rect({left:0,top:0,width:1080,height:1350,fill:makeGrad(['rgba(4,10,40,0.55)','rgba(4,10,40,0.97)']),name:'Oscurecer'}));
-  add(new fabric.Rect({left:0,top:0,width:1080,height:150,fill:makeGrad(['#d40000','#760000']),name:'Banda superior'}));
-  add(newText('CENTRO DE DEPORTES',{left:40,top:36,width:1000,fontSize:72,style:'simple',name:'Página',campo:'pagina',autofit:true}));
-  add(newText('RESULTADO FINAL',{left:40,top:185,width:1000,fontSize:120,style:'oro3d',name:'Título',campo:'titulo',autofit:true}));
-  add(newText('LIGA MUNICIPAL • JORNADA 8',{left:40,top:345,width:1000,fontSize:40,fontFamily:'Montserrat',fontWeight:'800',fill:'#ffffff',charSpacing:80,name:'Liga',campo:'liga',autofit:true}));
-  add(new fabric.Placeholder({left:120,top:430,width:320,height:320,name:'Escudo local',campo:'escudo_local'}));
-  add(new fabric.Placeholder({left:640,top:430,width:320,height:320,name:'Escudo visitante',campo:'escudo_visitante'}));
-  add(newText('ÁGUILAS FC',{left:60,top:772,width:440,fontSize:58,style:'simple',outerWidth:4,outerColor:'#000000',name:'Equipo local',campo:'local',autofit:true,maxLines:2}));
-  add(newText('HALCONES',{left:580,top:772,width:440,fontSize:58,style:'simple',outerWidth:4,outerColor:'#000000',name:'Equipo visitante',campo:'visitante',autofit:true,maxLines:2}));
-  add(newText('3',{left:130,top:885,width:300,fontSize:250,style:'oro3d',name:'Goles local',campo:'goles_local'}));
-  add(newText('-',{left:440,top:905,width:200,fontSize:200,style:'blanco3d',name:'Guion'}));
-  add(newText('1',{left:650,top:885,width:300,fontSize:250,style:'oro3d',name:'Goles visitante',campo:'goles_visitante'}));
-  add(new fabric.Rect({left:0,top:1215,width:1080,height:135,fill:'#000000',opacity:0.85,name:'Franja inferior'}));
-  add(newText('Domingo 9 de noviembre • Unidad Deportiva',{left:40,top:1258,width:1000,fontSize:38,fontFamily:'Montserrat',fontWeight:'700',fill:'#ffffff',name:'Fecha y lugar',campo:'fecha',autofit:true}));
-  afterTpl();}
-function tplFrase(){resetCanvas(1080,1080,'#1b1b1b');const add=o=>canvas.add(o);
-  add(new fabric.Placeholder({left:0,top:0,width:1080,height:1080,name:'Fondo',campo:'fondo'}));
-  add(new fabric.Rect({left:0,top:0,width:1080,height:1080,fill:'rgba(0,0,0,0.45)',name:'Oscurecer'}));
-  add(newText('“La vida no se trata de esperar a que pase la tormenta, sino de aprender a bailar bajo la lluvia.”',{left:90,top:280,width:900,fontSize:66,fontFamily:'Playfair Display',fontWeight:'700',fontStyle:'italic',style:'simple',lineHeight:1.2,name:'Frase',campo:'frase',autofit:true,maxLines:7}));
-  add(new fabric.Rect({left:440,top:880,width:200,height:6,fill:'#ffd84a',name:'Línea'}));
-  add(newText('REFLEXIONES',{left:90,top:910,width:900,fontSize:40,fontFamily:'Montserrat',fontWeight:'800',fill:'#ffd84a',charSpacing:200,name:'Página',campo:'pagina',autofit:true}));
-  afterTpl();}
+
 
 
 /* ---------- cambiar tamaño con reacomodo ---------- */
