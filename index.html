@@ -24370,8 +24370,9 @@ table.prev th{color:var(--acc)}
   <button id="bNew" title="Diseño nuevo">＋ Nuevo</button>
   <button id="bTpl">📁 Plantillas</button>
   <button id="bSaveTpl">⭐ Guardar como plantilla</button>
+  <button id="bResize" title="Cambiar a otro tamaño">📐 Tamaño</button>
   <div class="menu" id="mFile"><button>📄 Archivo ▾</button><div class="dd">
-    <button id="bOpen">Abrir proyecto o imagen…</button>
+    <button id="bOpen">Abrir PSD, proyecto o imagen…</button>
     <button id="bSaveProj">Guardar proyecto (.json)</button>
   </div></div>
   <button id="bUndo" title="Deshacer (Ctrl+Z)">↶</button>
@@ -24414,7 +24415,7 @@ table.prev th{color:var(--acc)}
 </aside>
 
 <input type="file" id="fileImg" accept="image/*" hidden>
-<input type="file" id="fileOpen" accept=".json,image/*" hidden>
+<input type="file" id="fileOpen" accept=".json,.psd,image/*" hidden>
 
 <!-- Nuevo -->
 <dialog id="dlgNew"><div class="dh"><h2>Diseño nuevo</h2><button data-close>✕</button></div><div class="db">
@@ -24430,6 +24431,14 @@ table.prev th{color:var(--acc)}
   <div class="grid2"><label>Ancho (px)<input id="newW" type="number" value="1080"></label><label>Alto (px)<input id="newH" type="number" value="1350"></label></div>
   <label>Color de fondo<input id="newBg" type="color" value="#ffffff"></label>
 </div><div class="df"><button data-close>Cancelar</button><button class="pri" id="newGo">Crear</button></div></dialog>
+
+<!-- Cambiar tamaño -->
+<dialog id="dlgResize"><div class="dh"><h2>📐 Cambiar a otro tamaño</h2><button data-close>✕</button></div><div class="db">
+  <p class="muted" style="margin-top:0">El diseño se reacomoda solo: fondos y franjas se estiran, textos y logos se escalan y se reparten. Si algo no queda, lo ajustas a mano o Ctrl+Z.</p>
+  <div class="tgrid" id="rsGrid" style="grid-template-columns:repeat(3,1fr)"></div>
+  <div class="grid2" style="margin-top:12px"><label>Ancho (px)<input id="rsW" type="number"></label><label>Alto (px)<input id="rsH" type="number"></label></div>
+  <label class="chk" style="display:flex;gap:6px;align-items:center;color:var(--txt)"><input type="checkbox" id="rsCopy"> Descargar PNG en ese tamaño y dejar mi diseño como está</label>
+</div><div class="df"><button data-close>Cancelar</button><button class="pri" id="rsGo">Cambiar tamaño</button></div></dialog>
 
 <!-- Plantillas -->
 <dialog id="dlgTpl" style="width:min(820px,94vw)"><div class="dh"><h2>Plantillas</h2><button data-close>✕</button></div><div class="db">
@@ -24693,7 +24702,7 @@ function renderProps(){
   if(zone)return;
   if(!o){el.innerHTML=`<h3>Lienzo</h3><div class="grid2">${'<label>Ancho<input type="number" id="cvW" value="'+W+'"></label><label>Alto<input type="number" id="cvH" value="'+H+'"></label>'}</div><div class="row"><button data-act="cv-size">Aplicar tamaño</button></div><label>Color de fondo<input type="color" id="cvBg" value="${hex(canvas.backgroundColor||'#ffffff')}"></label>
   ${settings.key?'':'<div class="tip">Para usar la IA, pega tu <b>API key de OpenAI</b> en ⚙ Ajustes.</div>'}
-  <div class="tip"><b>Cómo trabajar</b><br>• ✨ <b>Diseño completo</b>: la IA crea la imagen.<br>• Pon los textos encima con <b>T</b> y elige un estilo (Dorado 3D, etc.).<br>• 🩹 <b>Corregir zona</b>: selecciona la imagen, marca el error y escribe cómo debe quedar.<br>• Ponle <b>Campo</b> a textos y espacios de imagen y usa <b>Diseños en serie</b> con tu Excel.<br>• Doble clic en una imagen o espacio para cambiar la foto.</div>`;
+  <div class="tip"><b>Cómo trabajar</b><br>• ✨ <b>Diseño completo</b>: la IA crea la imagen.<br>• Pon los textos encima con <b>T</b> y elige un estilo (Dorado 3D, etc.).<br>• 🩹 <b>Corregir zona</b>: selecciona la imagen, marca el error y escribe cómo debe quedar.<br>• Ponle <b>Campo</b> a textos y espacios de imagen y usa <b>Diseños en serie</b> con tu Excel.<br>• Doble clic en una imagen o espacio para cambiar la foto.<br>• <b>📐 Tamaño</b> pasa tu diseño a historia, post o portada.<br>• Al mover, las <b>guías rosas</b> te ayudan a alinear (mantén <b>Alt</b> para moverlo libre).<br>• <b>Archivo → Abrir</b> también abre tus <b>PSD</b> con capas.</div>`;
     $('#cvBg').oninput=e=>{canvas.backgroundColor=e.target.value;canvas.requestRenderAll();pushHistory();};bindActs(el);return;}
   if(o.type==='activeSelection'){el.innerHTML=`<h3>${o.size()} capas seleccionadas</h3><div class="row"><button data-act="al-ch">Centrar ↔</button><button data-act="al-cv">Centrar ↕</button></div><div class="row"><button data-act="dup">⧉ Duplicar</button><button data-act="delete" class="danger">🗑 Eliminar</button></div>`;bindActs(el);return;}
   let h=`<h3>${icon(o)} ${esc(typeName(o))}</h3><label>Nombre de la capa<input data-p="name" value="${esc(o.name||'')}"></label>`;
@@ -24808,7 +24817,7 @@ document.addEventListener('keydown',e=>{
 });
 document.addEventListener('paste',async e=>{const ae=document.activeElement;if(ae&&/INPUT|TEXTAREA/.test(ae.tagName))return;const it=[...(e.clipboardData||{}).items||[]].find(i=>i.type.startsWith('image/'));if(!it)return;e.preventDefault();try{await addImageFromURL(await fileToDataURL(it.getAsFile()),'Imagen pegada');}catch(err){alertErr(err)}});
 $('#stage').addEventListener('dragover',e=>e.preventDefault());
-$('#stage').addEventListener('drop',async e=>{e.preventDefault();for(const f of e.dataTransfer.files){if(f.type.startsWith('image/')){try{await addImageFromURL(await fileToDataURL(f),f.name.replace(/\.[^.]+$/,''));}catch(err){alertErr(err)}}else if(/\.json$/i.test(f.name))openProjectFile(f);}});
+$('#stage').addEventListener('drop',async e=>{e.preventDefault();for(const f of e.dataTransfer.files){if(f.type.startsWith('image/')){try{await addImageFromURL(await fileToDataURL(f),f.name.replace(/\.[^.]+$/,''));}catch(err){alertErr(err)}}else if(/\.json$/i.test(f.name))openProjectFile(f);else if(/\.psd$/i.test(f.name))importPSD(f);}});
 
 /* ---------- menús ---------- */
 document.querySelectorAll('.menu>button').forEach(b=>b.onclick=e=>{e.stopPropagation();const m=b.parentElement;const was=m.classList.contains('open');document.querySelectorAll('.menu').forEach(x=>x.classList.remove('open'));if(!was)m.classList.add('open');});
@@ -24819,7 +24828,7 @@ $('#newGo').onclick=()=>{const w=parseInt($('#newW').value),h=parseInt($('#newH'
 function saveProjectFile(){download(new Blob([JSON.stringify(project())],{type:'application/json'}),`proyecto-${stamp()}.json`);toast('Proyecto guardado en Descargas');}
 $('#bSaveProj').onclick=saveProjectFile;
 $('#bOpen').onclick=()=>{$('#fileOpen').value='';$('#fileOpen').click();};
-$('#fileOpen').onchange=async e=>{const f=e.target.files[0];if(!f)return;if(f.type.startsWith('image/'))return addImageFromURL(await fileToDataURL(f),f.name.replace(/\.[^.]+$/,''));openProjectFile(f);};
+$('#fileOpen').onchange=async e=>{const f=e.target.files[0];if(!f)return;if(/\.psd$/i.test(f.name))return importPSD(f);if(f.type.startsWith('image/'))return addImageFromURL(await fileToDataURL(f),f.name.replace(/\.[^.]+$/,''));openProjectFile(f);};
 async function openProjectFile(f){try{const p=JSON.parse(await f.text());if(p.app!=='estudio-ia')throw new Error('Este archivo no es un proyecto de Estudio IA');loadProject(p,()=>{undoStack=[];pushHistory();});}catch(err){alertErr(err)}}
 
 /* ---------- plantillas ---------- */
@@ -24875,6 +24884,86 @@ function tplFrase(){resetCanvas(1080,1080,'#1b1b1b');const add=o=>canvas.add(o);
   add(new fabric.Rect({left:440,top:880,width:200,height:6,fill:'#ffd84a',name:'Línea'}));
   add(newText('REFLEXIONES',{left:90,top:910,width:900,fontSize:40,fontFamily:'Montserrat',fontWeight:'800',fill:'#ffd84a',charSpacing:200,name:'Página',campo:'pagina',autofit:true}));
   afterTpl();}
+
+
+/* ---------- cambiar tamaño con reacomodo ---------- */
+const SIZES=[['Post cuadrado',1080,1080,'⬛'],['Vertical 4:5',1080,1350,'▮'],['Historia / Reel',1080,1920,'📱'],['Horizontal',1920,1080,'▬'],['Portada Facebook',1640,624,'🖼'],['Carta (imprimir)',2550,3300,'📄']];
+$('#bResize').onclick=()=>{$('#rsW').value=W;$('#rsH').value=H;$('#rsGrid').innerHTML=SIZES.map(([n,w,h,i])=>`<div class="tcard" data-w="${w}" data-h="${h}" style="padding:10px;text-align:center"><div style="font-size:26px">${i}</div><div class="tn" style="padding:4px 0 0">${n}<br><span class="muted">${w}×${h}</span></div></div>`).join('');openDialog('dlgResize');};
+$('#rsGrid').onclick=e=>{const c=e.target.closest('.tcard');if(!c)return;$('#rsW').value=c.dataset.w;$('#rsH').value=c.dataset.h;document.querySelectorAll('#rsGrid .tcard').forEach(x=>x.style.borderColor='');c.style.borderColor='var(--acc)';};
+$('#rsGo').onclick=async()=>{const nw=parseInt($('#rsW').value),nh=parseInt($('#rsH').value);if(!(nw>50&&nh>50&&nw<=8000&&nh<=8000))return toast('Tamaño no válido');$('#dlgResize').close();
+  if($('#rsCopy').checked){const snap=JSON.stringify(project());resizeDesign(nw,nh);const url=withHidden(()=>canvas.toDataURL({format:'png',multiplier:1/zoom}));download(url,`diseno-${nw}x${nh}-${stamp()}.png`);loadProject(JSON.parse(snap),()=>{undoStack.pop();});toast('PNG descargado; tu diseño quedó igual');}
+  else{resizeDesign(nw,nh);toast('Tamaño cambiado. Ajusta lo que quieras o Ctrl+Z para regresar.',5000);}};
+function resizeDesign(nw,nh){
+  const s=Math.min(nw/W,nh/H),objs=canvas.getObjects().filter(o=>!o.temp);canvas.discardActiveObject();
+  const plan=objs.map(o=>{const b=o.getBoundingRect(true,true);return {o,b,fullW:b.width>=W*0.9,fullH:b.height>=H*0.9};});
+  for(const {o,b,fullW,fullH} of plan){
+    const cx=b.left+b.width/2,cy=b.top+b.height/2;
+    const nx=fullW?nw/2+(cx-W/2)*(nw/W):cx/W*nw, ny=fullH?nh/2+(cy-H/2)*(nh/H):cy/H*nh;
+    const tw=fullW?b.width*nw/W:b.width*s, th=fullH?b.height*nh/H:b.height*s;
+    if(isImg(o)&&(fullW||fullH)&&!o.angle){fitCover(o,tw,th);}
+    else if((o.placeholder||o.type==='rect')&&(fullW||fullH)&&!o.angle){const sw=o.placeholder?0:(o.stroke?(o.strokeWidth||0):0);o.set({scaleX:1,scaleY:1,width:Math.max(1,tw-sw),height:Math.max(1,th-sw)});if(o.rx){o.set({rx:o.rx*s,ry:o.ry*s});}}
+    else if(isText(o)){o.set({fontSize:o.fontSize*s,width:fullW?tw:o.width*s,outerWidth:(o.outerWidth||0)*s,extrude:(o.extrude||0)*s,strokeWidth:(o.strokeWidth||0)*s,charSpacing:o.charSpacing});if(o.baseFont)o.baseFont*=s;o.initDimensions();o.boxW=o.width;if(o.autofit)runAutofit(o);}
+    else{o.set({scaleX:o.scaleX*s,scaleY:o.scaleY*s});}
+    o.setCoords();o.setPositionByOrigin(new fabric.Point(nx,ny),'center','center');o.setCoords();
+  }
+  W=nw;H=nh;fit();canvas.requestRenderAll();pushHistory();renderLayers();renderProps();
+}
+
+/* ---------- guías inteligentes ---------- */
+let guides=[],snapTargets=null;
+canvas.on('object:moving',e=>{
+  const o=e.target;if(e.e&&e.e.altKey){guides=[];return;}
+  if(!snapTargets){snapTargets={x:[0,W/2,W],y:[0,H/2,H]};const act=canvas.getActiveObjects();canvas.getObjects().forEach(p=>{if(p===o||act.includes(p)||p.temp||!p.visible)return;const b=p.getBoundingRect(true,true);snapTargets.x.push(b.left,b.left+b.width/2,b.left+b.width);snapTargets.y.push(b.top,b.top+b.height/2,b.top+b.height);});}
+  const th=7/zoom,b=o.getBoundingRect(true,true);
+  const xs=[b.left,b.left+b.width/2,b.left+b.width],ys=[b.top,b.top+b.height/2,b.top+b.height];
+  let bx=null,by=null;
+  for(const t of snapTargets.x)for(const v of xs){const d=t-v;if(Math.abs(d)<th&&(!bx||Math.abs(d)<Math.abs(bx.d)))bx={d,t};}
+  for(const t of snapTargets.y)for(const v of ys){const d=t-v;if(Math.abs(d)<th&&(!by||Math.abs(d)<Math.abs(by.d)))by={d,t};}
+  guides=[];if(bx){o.left+=bx.d;guides.push({x:bx.t});}if(by){o.top+=by.d;guides.push({y:by.t});}
+  o.setCoords();
+});
+canvas.on('mouse:up',()=>{snapTargets=null;if(guides.length){guides=[];canvas.requestRenderAll();}});
+canvas.on('after:render',()=>{if(!guides.length)return;const ctx=canvas.getContext(),r=canvas.getRetinaScaling();ctx.save();ctx.setTransform(r*zoom,0,0,r*zoom,0,0);ctx.strokeStyle='#ff2bd6';ctx.lineWidth=1.5/zoom;ctx.setLineDash([6/zoom,4/zoom]);
+  guides.forEach(g=>{ctx.beginPath();if(g.x!=null){ctx.moveTo(g.x,0);ctx.lineTo(g.x,H);}else{ctx.moveTo(0,g.y);ctx.lineTo(W,g.y);}ctx.stroke();});ctx.restore();});
+
+/* ---------- abrir PSD ---------- */
+const rgbStr=c=>c&&c.r!=null?`rgb(${Math.round(c.r)},${Math.round(c.g)},${Math.round(c.b)})`:'#000000';
+function mapFont(ps){const n=String(ps||'').toLowerCase().replace(/[-_ ].*$/,'').replace(/(mt|ps|std|pro)$/,'');const all=FONTS.concat((window.userFonts||[]));const hit=all.find(f=>f.toLowerCase().replace(/\s+/g,'')===n)||all.find(f=>n&&n.startsWith(f.toLowerCase().replace(/\s+/g,'')));return hit?{name:hit,exact:true}:{name:/impact|anton|bebas|oswald|condensed/i.test(ps)?'Anton':'Montserrat',exact:false};}
+function psdText(l,missing){const t=l.text,run=(t.styleRuns&&t.styleRuns[0]&&t.styleRuns[0].style)||{},st=Object.assign({},run,t.style||{});
+  const font=(st.font&&st.font.name)||'';const tf=t.transform||[1,0,0,1,l.left||0,l.top||0];const sc=Math.sqrt(tf[2]*tf[2]+tf[3]*tf[3])||1;const fs=Math.max(4,(st.fontSize||24)*sc);
+  const fam=mapFont(font);if(!fam.exact&&font)missing.add(font.split('-')[0]);
+  const wgt=/black|heavy/i.test(font)?'900':/extra-?bold|ultra-?bold/i.test(font)?'800':/semi-?bold|demi-?bold/i.test(font)?'600':/bold/i.test(font)?'bold':'normal';
+  const ps=(t.paragraphStyle)||((t.paragraphStyleRuns&&t.paragraphStyleRuns[0]&&t.paragraphStyleRuns[0].style))||{};const just=ps.justification||'left';
+  const hasBox=l.right!=null&&l.left!=null&&l.right-l.left>4&&l.bottom-l.top>4;const left=hasBox?l.left:tf[4],top=hasBox?l.top-fs*0.12:tf[5]-fs*0.9;
+  const isBox=t.shapeType==='box'&&t.boxBounds;const boxW=isBox?(t.boxBounds[2]-t.boxBounds[0])*sc:0;
+  const o=new fabric.FancyText(String(t.text).replace(/\r\n?/g,'\n'),{left,top,width:isBox?boxW:20000,fontSize:fs,fontFamily:fam.name,fontWeight:wgt,fontStyle:/italic|oblique/i.test(font)?'italic':'normal',textAlign:/center/.test(just)?'center':/right/.test(just)?'right':'left',fill:st.fillColor?rgbStr(st.fillColor):'#000000',lineHeight:1.12});
+  if(!isBox){o.initDimensions();o.set('width',Math.ceil(o.calcTextWidth()+Math.max(6,fs*0.15)));o.initDimensions();}
+  if(isBox&&!hasBox){o.set({left:tf[4]+t.boxBounds[0]*sc,top:tf[5]+t.boxBounds[1]*sc});}
+  const fx=l.effects||{};const sk=Array.isArray(fx.stroke)?fx.stroke[0]:fx.stroke;if(sk&&sk.enabled!==false&&!fx.disabled)o.set({outerWidth:(sk.size&&sk.size.value)||3,outerColor:rgbStr(sk.color)});
+  const ds=Array.isArray(fx.dropShadow)?fx.dropShadow[0]:fx.dropShadow;if(ds&&ds.enabled!==false&&!fx.disabled)o.set({dropShadow:true});
+  return o;}
+function psdMasked(l){const m=l.mask;const c=elToCanvas(l.canvas,l.canvas.width,l.canvas.height);const a=document.createElement('canvas');a.width=c.width;a.height=c.height;const ax=a.getContext('2d');const dc=m.defaultColor==null?255:m.defaultColor;ax.fillStyle=`rgb(${dc},${dc},${dc})`;ax.fillRect(0,0,a.width,a.height);ax.drawImage(m.canvas,(m.left||0)-(l.left||0),(m.top||0)-(l.top||0));const id=ax.getImageData(0,0,a.width,a.height),d=id.data;for(let i=0;i<d.length;i+=4){d[i+3]=d[i];}ax.putImageData(id,0,0);const x=c.getContext('2d');x.globalCompositeOperation='destination-in';x.drawImage(a,0,0);return c;}
+async function importPSD(file){
+  if(!window.agPsd)return toast('No cargó el componente PSD');
+  if(canvas.getObjects().length&&!confirm('Se reemplazará el diseño actual por el PSD. ¿Continuar?'))return;
+  busy('Abriendo PSD…');
+  try{
+    const psd=agPsd.readPsd(await file.arrayBuffer(),{skipThumbnail:true,skipCompositeImageData:true});
+    const flat=[];(function walk(list,hid,op){(list||[]).forEach(l=>{const h=hid||!!l.hidden,o=op*(l.opacity==null?1:l.opacity);if(l.children)walk(l.children,h,o);else flat.push({l,h,o});});})(psd.children,false,1);
+    resetCanvas(psd.width,psd.height,'#ffffff');restoring=true;
+    const missing=new Set();let n=0,clip=0,txt=0;
+    for(const {l,h,o} of flat){let obj=null;
+      try{
+        if(l.text&&l.text.text!=null){obj=psdText(l,missing);txt++;}
+        if(!obj&&l.canvas&&l.canvas.width>0&&l.canvas.height>0){const c=(l.mask&&l.mask.canvas&&!l.mask.disabled)?psdMasked(l):l.canvas;obj=await fabricImage(c.toDataURL('image/png'));obj.set({left:l.left||0,top:l.top||0});}
+      }catch(err){console.warn('capa',l.name,err);}
+      if(!obj)continue;if(l.clipping)clip++;
+      obj.set({name:l.name||typeName(obj),opacity:o,visible:!h});canvas.add(obj);n++;await new Promise(r=>setTimeout(r,0));
+    }
+    restoring=false;await ensureFonts();refreshFonts();undoStack=[];pushHistory();renderLayers();renderProps();busy();
+    let msg=`PSD abierto: ${n} capas (${txt} textos editables).`;if(missing.size)msg+=` Fuentes que no tengo: ${[...missing].join(', ')}; usé una parecida.`;if(clip)msg+=' Las máscaras de recorte se ven sin recortar.';toast(msg,10000);
+  }catch(e){restoring=false;alertErr(e);}
+}
 
 /* ---------- exportar ---------- */
 function withHidden(fn){const hide=canvas.getObjects().filter(o=>(o.placeholder||o.temp)&&o.visible);hide.forEach(o=>o.visible=false);const act=canvas.getActiveObject();canvas.discardActiveObject();canvas.renderAll();try{return fn();}finally{hide.forEach(o=>o.visible=true);if(act&&canvas.getObjects().includes(act))canvas.setActiveObject(act);canvas.requestRenderAll();}}
