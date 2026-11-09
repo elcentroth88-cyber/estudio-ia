@@ -24306,6 +24306,10 @@ header .sp{flex:1}
 .layer .lname{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .layer em{color:var(--acc);font-style:normal;font-size:11px}
 .layer .ic{padding:2px 6px;border:0;background:none}
+.layer .grip{color:#5d6578;cursor:grab;font-size:12px;letter-spacing:-2px}
+.layer.over{border-top:2px solid var(--acc)}
+.layer.dragging{opacity:.4}
+.layer [data-l=up],.layer [data-l=down]{font-size:10px;color:var(--muted);padding:2px 3px}
 #props h3{margin:0 0 10px;font-size:14px}
 #props label{display:block;margin:0 0 8px;color:var(--muted);font-size:11.5px}
 #props label input:not([type=checkbox]),#props label select,#props label textarea{display:block;width:100%;margin-top:3px;background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:6px 8px;color:var(--txt)}
@@ -24625,7 +24629,7 @@ function preloadFonts(){return Promise.all(FONTS.flatMap(f=>['400','700','800','
 /* ---------- historial ---------- */
 let undoStack=[],redoStack=[],histTimer=null,saveTimer=null;
 function pushHistory(){if(restoring)return;clearTimeout(histTimer);histTimer=setTimeout(()=>{if(restoring)return;const s=JSON.stringify(project());if(undoStack[undoStack.length-1]===s)return;undoStack.push(s);if(undoStack.length>25)undoStack.shift();redoStack=[];clearTimeout(saveTimer);saveTimer=setTimeout(()=>idb.set('autosave',s).catch(()=>{}),1200);},250);}
-function undo(){if(undoStack.length<2)return toast('Nada que deshacer');redoStack.push(undoStack.pop());loadProject(JSON.parse(undoStack[undoStack.length-1]));}
+function undo(){clearTimeout(histTimer);if(undoStack.length<2)return toast('Nada que deshacer');redoStack.push(undoStack.pop());loadProject(JSON.parse(undoStack[undoStack.length-1]));}
 function redo(){if(!redoStack.length)return;const s=redoStack.pop();undoStack.push(s);loadProject(JSON.parse(s));}
 $('#bUndo').onclick=undo;$('#bRedo').onclick=redo;
 canvas.on('object:added',e=>{if(restoring||e.target.temp)return;pushHistory();renderLayers();});
@@ -24774,18 +24778,27 @@ function doAct(a){
 
 /* ---------- capas ---------- */
 function renderLayers(){if(restoring)return;const list=$('#layers');const objs=canvas.getObjects().filter(o=>!o.temp);const act=canvas.getActiveObjects();
-  list.innerHTML=objs.slice().reverse().map(o=>{const i=canvas.getObjects().indexOf(o);return `<div class="layer ${act.includes(o)?'sel':''}" data-i="${i}"><button class="ic" data-l="vis" title="Mostrar/ocultar">${o.visible?'👁':'🚫'}</button><span class="lname">${icon(o)} ${esc(o.name||typeName(o))}${o.campo?` <em>{${esc(o.campo)}}</em>`:''}</span><button class="ic" data-l="lock" title="Bloquear">${o.lockedLayer?'🔒':'🔓'}</button></div>`;}).join('')||'<p class="muted" style="padding:6px">Sin capas todavía</p>';}
+  list.innerHTML=objs.slice().reverse().map(o=>{const i=canvas.getObjects().indexOf(o);return `<div class="layer ${act.includes(o)?'sel':''}" data-i="${i}" draggable="true" title="Arrastra para cambiar el orden"><span class="grip">⋮⋮</span><button class="ic" data-l="vis" title="Mostrar/ocultar">${o.visible?'👁':'🚫'}</button><span class="lname">${icon(o)} ${esc(o.name||typeName(o))}${o.campo?` <em>{${esc(o.campo)}}</em>`:''}</span><button class="ic" data-l="up" title="Subir">▲</button><button class="ic" data-l="down" title="Bajar">▼</button><button class="ic" data-l="lock" title="Bloquear">${o.lockedLayer?'🔒':'🔓'}</button></div>`;}).join('')||'<p class="muted" style="padding:6px">Sin capas todavía</p>';}
 $('#layers').onclick=e=>{const row=e.target.closest('.layer');if(!row)return;const o=canvas.getObjects()[+row.dataset.i];if(!o)return;const l=e.target.closest('[data-l]');
   if(l&&l.dataset.l==='vis'){o.visible=!o.visible;if(!o.visible)canvas.discardActiveObject();}
   else if(l&&l.dataset.l==='lock'){o.lockedLayer=!o.lockedLayer;o.selectable=!o.lockedLayer;o.evented=!o.lockedLayer;}
+  else if(l&&l.dataset.l==='up'){o.bringForward();}
+  else if(l&&l.dataset.l==='down'){o.sendBackwards();}
   else{canvas.setActiveObject(o);}
   canvas.requestRenderAll();pushHistory();renderLayers();renderProps();};
 
+let dragIdx=-1;
+$('#layers').addEventListener('dragstart',e=>{const r=e.target.closest('.layer');if(!r)return;dragIdx=+r.dataset.i;r.classList.add('dragging');e.dataTransfer.effectAllowed='move';try{e.dataTransfer.setData('text/plain',String(dragIdx));}catch(_){}});
+$('#layers').addEventListener('dragover',e=>{const r=e.target.closest('.layer');if(!r||dragIdx<0)return;e.preventDefault();document.querySelectorAll('#layers .layer.over').forEach(x=>x.classList.remove('over'));r.classList.add('over');});
+$('#layers').addEventListener('dragend',()=>{dragIdx=-1;document.querySelectorAll('#layers .layer').forEach(x=>x.classList.remove('over','dragging'));});
+$('#layers').addEventListener('drop',e=>{const r=e.target.closest('.layer');if(!r||dragIdx<0)return;e.preventDefault();const o=canvas.getObjects()[dragIdx];const ti=+r.dataset.i;dragIdx=-1;if(o&&!isNaN(ti)){canvas.moveTo(o,ti);canvas.setActiveObject(o);canvas.requestRenderAll();pushHistory();renderLayers();renderProps();}});
 /* ---------- teclado, pegar, arrastrar ---------- */
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'&&zone){endZone();return;}
-  const ae=document.activeElement;const typing=ae&&/INPUT|TEXTAREA|SELECT/.test(ae.tagName);const o=canvas.getActiveObject();if(typing||(o&&o.isEditing)||document.querySelector('dialog[open]'))return;
-  const k=e.key.toLowerCase(),mod=e.ctrlKey||e.metaKey;
+  const ae=document.activeElement;const k=e.key.toLowerCase(),mod=e.ctrlKey||e.metaKey;const o=canvas.getActiveObject();
+  if(document.querySelector('dialog[open]'))return;
+  if(mod&&(k==='z'||k==='y')&&!(o&&o.isEditing)){e.preventDefault();if(ae&&ae!==document.body)ae.blur();(k==='y'||e.shiftKey)?redo():undo();return;}
+  const typing=ae&&/INPUT|TEXTAREA|SELECT/.test(ae.tagName);if(typing||(o&&o.isEditing))return;
   if(mod&&k==='z'){e.preventDefault();e.shiftKey?redo():undo();}
   else if(mod&&k==='y'){e.preventDefault();redo();}
   else if(mod&&k==='d'){e.preventDefault();doAct('dup');}
