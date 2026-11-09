@@ -24441,6 +24441,8 @@ table.prev th{color:var(--acc)}
   <button id="aZone" class="ai"><span class="i">🩹</span>Corregir zona</button>
   <button id="aEdit" class="ai"><span class="i">🪄</span>Editar imagen</button>
   <button id="aBg" class="ai"><span class="i">✂</span>Quitar fondo</button>
+  <div class="sep">CHATGPT</div>
+  <button id="aGpt" style="background:#10a37f;border-color:#10a37f;color:#fff;font-weight:600"><span class="i">📋</span>Pedido para ChatGPT</button>
 </nav>
 
 <main id="stage">
@@ -24526,6 +24528,28 @@ table.prev th{color:var(--acc)}
   </div>
   <p class="muted">Tarda de 30 s a 2 min. Cada variante se cobra aparte en tu cuenta de OpenAI.</p>
 </div><div class="df"><button data-close>Cancelar</button><button class="ai" id="genGo">Generar</button></div></dialog>
+
+<!-- Pedido para ChatGPT -->
+<dialog id="dlgGpt" style="width:min(720px,95vw)"><div class="dh"><h2>📋 Pedido profesional para ChatGPT</h2><button data-close>✕</button></div><div class="db">
+  <label>Idea del diseño<textarea id="gptIdea" rows="2" placeholder="Ej: aniversario 10 años de taquería El Tacotehua, promo 2x1 en pastor y kilo de carne a $240"></textarea></label>
+  <label>Textos exactos (uno por renglón)<textarea id="gptTexts" rows="5" placeholder="10 ANIVERSARIO&#10;¡Celebra con nosotros!&#10;Tacos al pastor y árabe 2x1&#10;Kilo de carne $240&#10;13 de noviembre 2026 · Suc. Ecológico&#10;Calle 4 Oriente #107, Col. Centro"></textarea></label>
+  <div class="grid2">
+    <label>Formato<select id="gptFmt"><option value="auto">Igual que mi lienzo</option><option value="4:5">Vertical 4:5 (Facebook/Instagram)</option><option value="1:1">Cuadrado 1:1</option><option value="9:16">Historia / Reel 9:16</option><option value="16:9">Horizontal 16:9</option></select></label>
+    <label>Estilo<select id="gptStyle">
+      <option value="lujo">Lujo rojo y dorado (fiesta, aniversario)</option>
+      <option value="antojo">Antojo / comida (fuego, noche, apetitoso)</option>
+      <option value="deporte">Deportivo (estadio, energía, 3D)</option>
+      <option value="noticia">Noticia / informativo (serio, limpio)</option>
+      <option value="promo">Promoción llamativa (amarillo, rojo, ofertas)</option>
+      <option value="elegante">Elegante / minimalista</option>
+      <option value="infantil">Alegre / infantil (colores, caricatura)</option>
+    </select></label>
+  </div>
+  <label class="chk" style="display:flex;gap:6px;align-items:center;color:var(--txt)"><input type="checkbox" id="gptAI"> Pulirlo con IA (usa tu API key, cuesta centavos). Sin marcar, se arma gratis.</label>
+  <div class="row" style="justify-content:flex-start"><button class="pri" id="gptBuild" style="flex:0">⚙ Armar pedido</button></div>
+  <label>Pedido listo (puedes editarlo)<textarea id="gptOut" rows="10"></textarea></label>
+  <div class="tip">En ChatGPT: pega el pedido y <b>adjunta el logo del cliente y las fotos reales</b> del producto. Cuando salga, cópialo y pégalo aquí con <b>Ctrl+V</b> para corregir textos, cambiar tamaño o agregar logos.</div>
+</div><div class="df"><button id="gptOpen">Abrir ChatGPT ↗</button><button class="pri" id="gptCopy">📋 Copiar pedido</button></div></dialog>
 
 <!-- Elemento -->
 <dialog id="dlgElem"><div class="dh"><h2>🧩 Elemento con fondo transparente</h2><button data-close>✕</button></div><div class="db">
@@ -24874,7 +24898,7 @@ function showCtx(x,y){const o=canvas.getActiveObject();const m=$('#ctx');let h='
       h+='<div class="sep"></div>'+ctxItem('🏷','Campo para serie…','campo',o.campo?esc(o.campo):'')+ctxItem('✎','Renombrar capa…','rename')+ctxItem('🙈','Ocultar','hide')+ctxItem('🔒','Bloquear','lock');
     }
   }else{
-    h+=ctxItem('📋','Pegar aquí','pastehere','Ctrl+V',clip?'':'dis')+'<div class="sep"></div>'+ctxItem('T','Agregar texto aquí','addtext')+ctxItem('🖼','Agregar imagen','addimg')+ctxItem('⬚','Espacio de imagen aquí','addslot')+'<div class="sep"></div>'+ctxItem('✨','Diseño completo con IA','aidesign','','ai')+ctxItem('🧩','Elemento PNG con IA','aielem','','ai')+'<div class="sep"></div>'+ctxItem('📐','Cambiar tamaño…','resize')+ctxItem('↶','Deshacer','undo','Ctrl+Z')+ctxItem('↷','Rehacer','redo','Ctrl+Y');
+    h+=ctxItem('📋','Pegar aquí','pastehere','Ctrl+V',clip?'':'dis')+'<div class="sep"></div>'+ctxItem('T','Agregar texto aquí','addtext')+ctxItem('🖼','Agregar imagen','addimg')+ctxItem('⬚','Espacio de imagen aquí','addslot')+'<div class="sep"></div>'+ctxItem('✨','Diseño completo con IA','aidesign','','ai')+ctxItem('🧩','Elemento PNG con IA','aielem','','ai')+ctxItem('📋','Pedido para ChatGPT','gpt')+'<div class="sep"></div>'+ctxItem('📐','Cambiar tamaño…','resize')+ctxItem('↶','Deshacer','undo','Ctrl+Z')+ctxItem('↷','Rehacer','redo','Ctrl+Y');
   }
   m.innerHTML=h;m.classList.add('show');const r=m.getBoundingClientRect();const vw=innerWidth,vh=innerHeight;
   m.style.left=Math.min(x,vw-r.width-8)+'px';m.style.top=Math.max(8,Math.min(y,vh-r.height-8))+'px';
@@ -24897,7 +24921,7 @@ $('#ctx').addEventListener('click',e=>{const it=e.target.closest('[data-c]');if(
     case 'addtext':{const t=newText('ESCRIBE AQUÍ',{style:'blanco3d',width:W*0.6,fontSize:Math.round(W*0.07)});t.setPositionByOrigin(ctxPoint,'center','center');addAndSelect(t);break;}
     case 'addimg':pickImageFor(null);break;
     case 'addslot':{const ph=new fabric.Placeholder({left:ctxPoint.x-W*0.15,top:ctxPoint.y-W*0.15,width:W*0.3,height:W*0.3,name:'Imagen',campo:''});addAndSelect(ph);break;}
-    case 'aidesign':$('#aDesign').click();break;case 'aielem':$('#aElem').click();break;
+    case 'aidesign':$('#aDesign').click();break;case 'gpt':$('#aGpt').click();break;case 'aielem':$('#aElem').click();break;
     case 'resize':$('#bResize').click();break;case 'undo':undo();break;case 'redo':redo();break;
     default:doAct(c);
   }});
@@ -25313,6 +25337,29 @@ async function chatSend(){if(chat.busy)return;const txt=$('#chatIn').value.trim(
     updChatTarget();
   }catch(e){wait.classList.add('err');wait.textContent='⚠ '+aiErrorMsg(e);}
   finally{chat.busy=false;$('#chatSend').disabled=false;const m=$('#chatMsgs');m.scrollTop=m.scrollHeight;}}
+
+
+/* ---------- pedido para ChatGPT ---------- */
+const GPT_STYLES={
+ lujo:'fondo rojo intenso con brillos y bokeh, elementos dorados metálicos (listones, globos, estrellas, confeti), números y títulos en letras 3D doradas brillantes con borde y sombra, ambiente de celebración premium',
+ antojo:'ambiente nocturno y cálido, fuego y humo de fondo, comida en primer plano muy apetitosa y realista con vapor y brillo, títulos en letras 3D amarillas y rojas con borde blanco, estilo publicidad de taquería mexicana',
+ deporte:'estadio iluminado de noche, luces y destellos, texturas dinámicas, colores intensos, títulos en letras 3D metálicas con contorno, mucha energía y movimiento',
+ noticia:'diseño limpio y serio tipo noticiero, franja roja de "última hora", fotografía protagonista, tipografía sans-serif gruesa y muy legible, fondos blancos o neutros',
+ promo:'colores amarillo y rojo muy llamativos, bandas diagonales, sellos de oferta, precios gigantes en letras 3D, producto en primer plano, máximo impacto visual',
+ elegante:'paleta sobria (negro, blanco, dorado suave), mucho espacio limpio, tipografías finas y elegantes, iluminación suave de estudio, estilo minimalista de lujo',
+ infantil:'colores alegres y brillantes, formas redondeadas, ilustraciones tipo caricatura amigable, tipografías divertidas y gruesas, ambiente festivo'
+};
+function gptRatio(){const v=$('#gptFmt').value;if(v!=='auto')return v;const r=W/H;return Math.abs(r-1)<0.08?'1:1':r<0.65?'9:16':r<1?'4:5':'16:9';}
+function gptLocal(){const idea=$('#gptIdea').value.trim(),texts=$('#gptTexts').value.split('\n').map(t=>t.trim()).filter(Boolean),ratio=gptRatio();const fmtName={'4:5':'vertical 4:5','1:1':'cuadrado 1:1','9:16':'vertical 9:16 (historia)','16:9':'horizontal 16:9'}[ratio];
+  let p=`Crea un diseño publicitario profesional para redes sociales, formato ${fmtName}, con calidad de agencia de publicidad.\n\nTema: ${idea||'(describe aquí el diseño)'}\n\nEstilo visual: ${GPT_STYLES[$('#gptStyle').value]}.\n\nComposición: título principal grande y protagonista en la parte superior; imagen o producto principal al centro, bien iluminado y nítido; datos importantes (fecha, sucursal, dirección, teléfono) ordenados en franjas o etiquetas en la parte inferior. Buena jerarquía visual y todo legible en un celular.`;
+  if(texts.length)p+=`\n\nIncluye EXACTAMENTE estos textos, con esta ortografía, acentos y mayúsculas, sin agregar otros textos ni inventar datos:\n${texts.map(t=>`- "${t}"`).join('\n')}`;
+  p+=`\n\nSi adjunto un logotipo, colócalo sin modificar su diseño ni sus colores. Si adjunto fotos reales, intégralas respetándolas fielmente.\nAcabado: alta resolución, colores vibrantes, iluminación profesional, sin marcas de agua.`;return p;}
+$('#aGpt').onclick=()=>openDialog('dlgGpt');
+$('#gptBuild').onclick=async()=>{const local=gptLocal();if(!$('#gptAI').checked){$('#gptOut').value=local;return;}if(needKey())return;const b=$('#gptBuild');b.disabled=true;b.textContent='⚙ Puliendo…';
+  try{$('#gptOut').value=await aiText('Eres director de arte de una agencia de publicidad en México. Mejora este pedido para que ChatGPT genere un diseño publicitario espectacular. Hazlo más específico en composición, iluminación, materiales, tipografías 3D, elementos decorativos y jerarquía, pero conserva EXACTAMENTE los textos entre comillas, el formato y las instrucciones sobre logo y fotos. No inventes datos. Escribe en español y devuelve solo el pedido final.',local);}catch(e){alertErr(e);$('#gptOut').value=local;}finally{b.disabled=false;b.textContent='⚙ Armar pedido';}};
+async function copyText(t){try{await navigator.clipboard.writeText(t);return true;}catch(e){const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();let ok=false;try{ok=document.execCommand('copy');}catch(_){}ta.remove();return ok;}}
+$('#gptCopy').onclick=async()=>{let t=$('#gptOut').value.trim();if(!t){t=gptLocal();$('#gptOut').value=t;}toast((await copyText(t))?'✅ Pedido copiado. Pégalo en ChatGPT con Ctrl+V':'No se pudo copiar; selecciónalo y usa Ctrl+C');};
+$('#gptOpen').onclick=()=>window.open('https://chatgpt.com/','_blank');
 
 /* ---------- diseños en serie ---------- */
 let serie={rows:[],cols:[],files:new Map(),zip:null};
