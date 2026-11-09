@@ -24285,10 +24285,10 @@ header .sp{flex:1}
 .menu.open .dd{display:block}
 .dd button{display:block;width:100%;text-align:left;border:0;background:none;padding:8px 10px}
 .dd button:hover{background:var(--panel2)}
-#tools{grid-area:tools;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;gap:6px;padding:10px 8px;overflow:auto}
-#tools button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 2px;font-size:11px;white-space:normal;line-height:1.15}
-#tools button .i{font-size:20px}
-#tools .sep{font-size:10px;color:var(--muted);text-align:center;margin-top:8px;letter-spacing:1px}
+#tools{grid-area:tools;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;gap:4px;padding:8px 6px;overflow:auto}
+#tools button{display:flex;flex-direction:column;align-items:center;gap:1px;padding:5px 2px;font-size:10.5px;white-space:normal;line-height:1.1;flex-shrink:0}
+#tools button .i{font-size:16px}
+#tools .sep{font-size:9.5px;color:var(--muted);text-align:center;margin-top:4px;letter-spacing:1px}
 #stage{grid-area:stage;position:relative;display:flex;align-items:center;justify-content:center;overflow:auto;background:#0b0c10 repeating-conic-gradient(#12141a 0 25%,#0e1015 0 50%) 0 0/24px 24px}
 #stage .canvas-container{box-shadow:0 10px 50px #000c}
 #zoomBar{position:absolute;right:12px;bottom:12px;display:flex;gap:4px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:4px}
@@ -24431,7 +24431,7 @@ table.prev th{color:var(--acc)}
 <nav id="tools">
   <button id="tText"><span class="i">T</span>Texto</button>
   <button id="tImg"><span class="i">🖼</span>Imagen</button>
-  <button id="tSlot"><span class="i">⬚</span>Espacio de imagen</button>
+  <button id="tSlot"><span class="i">⬚</span>Espacio imagen</button>
   <button id="tRect"><span class="i">▭</span>Rectángulo</button>
   <button id="tPill"><span class="i">⬭</span>Botón</button>
   <button id="tCircle"><span class="i">●</span>Círculo</button>
@@ -24442,7 +24442,7 @@ table.prev th{color:var(--acc)}
   <button id="aEdit" class="ai"><span class="i">🪄</span>Editar imagen</button>
   <button id="aBg" class="ai"><span class="i">✂</span>Quitar fondo</button>
   <div class="sep">CHATGPT</div>
-  <button id="aGpt" style="background:#10a37f;border-color:#10a37f;color:#fff;font-weight:600"><span class="i">📋</span>Pedido para ChatGPT</button>
+  <button id="aGpt" style="background:#10a37f;border-color:#10a37f;color:#fff;font-weight:600"><span class="i">📋</span>Pedido ChatGPT</button>
 </nav>
 
 <main id="stage">
