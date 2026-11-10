@@ -26701,7 +26701,11 @@ function cropEdges(t,x,y,sides){
 (function(){const base=fabric.Image.prototype.controls||fabric.Object.prototype.controls;const ctrls={};Object.keys(base).forEach(k=>{ctrls[k]=base[k];});
   const map={ml:'l',mr:'r',mt:'t',mb:'b',tl:'tl',tr:'tr',bl:'bl',br:'br'};
   Object.entries(map).forEach(([k,sides])=>{const orig=base[k];if(!orig)return;const c=new fabric.Control(Object.assign({},orig));const oh=orig.actionHandler;
-    c.actionHandler=function(e,tr,x,y){if(e.ctrlKey||tr.target.__crop){tr.target.slot=true;return cropEdges(tr.target,x,y,sides);}return oh.call(this,e,tr,x,y);};ctrls[k]=c;});
+    const side=sides.length===1;
+    c.actionHandler=function(e,tr,x,y){if(side||e.ctrlKey||tr.target.__crop){tr.target.slot=true;return cropEdges(tr.target,x,y,sides);}return oh.call(this,e,tr,x,y);};
+    if(side){c.cursorStyleHandler=()=>(sides==='l'||sides==='r')?'ew-resize':'ns-resize';const vert=(sides==='l'||sides==='r');c.sizeX=vert?10:26;c.sizeY=vert?26:10;
+      c.render=function(ctx,left,top,st,o){ctx.save();ctx.translate(left,top);ctx.rotate(fabric.util.degreesToRadians(o.angle||0));const w=vert?8:24,h=vert?24:8;ctx.fillStyle=o.__crop?'#00e0ff':'#ffffff';ctx.strokeStyle='#111';ctx.lineWidth=1;ctx.beginPath();ctx.roundRect(-w/2,-h/2,w,h,4);ctx.fill();ctx.stroke();ctx.restore();};}
+    ctrls[k]=c;});
   fabric.Image.prototype.controls=ctrls;})();
 let panStart=null;
 canvas.on('mouse:down',e=>{const t=e.target;panStart=(t&&isImg(t)&&e.e&&(e.e.ctrlKey||t.__crop)&&!(canvas._currentTransform&&canvas._currentTransform.corner))?{t,left:t.left,top:t.top,cropX:t.cropX||0,cropY:t.cropY||0}:null;});
@@ -26754,7 +26758,7 @@ function renderProps(){
     h+=`<div class="row"><button data-act="img-replace">🔁 Cambiar imagen</button><button data-act="img-zone" class="ai">🩹 Corregir zona</button></div>
     <div class="row"><button data-act="img-edit" class="ai">🪄 Editar con IA</button><button data-act="img-rmbg" class="ai">✂ Quitar fondo IA</button></div>
     <div class="row"><button data-act="img-rmbg-free" style="background:#1f6b45;border-color:#1f6b45;color:#fff">✂ Quitar fondo gratis</button></div>
-    <fieldset><legend>Recortar</legend><div class="row" style="margin:2px 0 6px"><button data-act="crop" class="${o.__crop?'pri':''}">${o.__crop?'✔ Listo':'⛶ Recortar'}</button><button data-act="uncrop">↺ Quitar recorte</button></div><div class="muted" style="font-size:11px;margin-bottom:6px">Atajo: <b>Ctrl + arrastrar una orilla</b> recorta · <b>Ctrl + arrastrar la foto</b> la acomoda dentro del recorte.</div></fieldset>
+    <fieldset><legend>Recortar</legend><div class="row" style="margin:2px 0 6px"><button data-act="crop" class="${o.__crop?'pri':''}">${o.__crop?'✔ Listo':'⛶ Recortar'}</button><button data-act="uncrop">↺ Quitar recorte</button></div><div class="muted" style="font-size:11px;margin-bottom:6px"><b>Barritas de los lados</b> = recortar · <b>Puntos de las esquinas</b> = agrandar/achicar · <b>Ctrl + arrastrar la foto</b> = acomodarla dentro del recorte.</div></fieldset>
     <fieldset><legend>Efectos de foto</legend><div class="styles" style="grid-template-columns:repeat(2,1fr);margin-bottom:8px">${Object.entries(IMG_FX).map(([k,f])=>`<button data-imgfx="${k}" style="font-family:Poppins;font-size:11.5px">${f.label}</button>`).join('')}</div>
     <div class="grid2"><label>Forma<select data-p="shape"><option value="rect" ${o.shape!=='circle'?'selected':''}>Rectángulo</option><option value="circle" ${o.shape==='circle'?'selected':''}>Círculo / óvalo</option></select></label>${numIn('radius',o.radius||0,'Esquinas redondas %',0,50)}
     ${colorIn('borderC',o.borderC||'#ffffff','Color del trazo')}${numIn('borderW',o.borderW||0,'Grosor del trazo',0,200)}</div></fieldset>
@@ -26860,7 +26864,7 @@ function showCtx(x,y){const o=canvas.getActiveObject();const m=$('#ctx');let h='
     h+='<div class="sep"></div>'+ctxSub('🗂','Capa',ctxItem('⏫','Traer al frente','front')+ctxItem('🔼','Subir','fwd')+ctxItem('🔽','Bajar','bwd')+ctxItem('⏬','Enviar al fondo','back'))+ctxSub('📐','Alinear a la página',ctxItem('⇤','Izquierda','al-l')+ctxItem('↔','Centro','al-ch')+ctxItem('⇥','Derecha','al-r')+ctxItem('⤒','Arriba','al-t')+ctxItem('↕','En medio','al-cv')+ctxItem('⤓','Abajo','al-b'));
     if(!multi){
       if(isText(o))h+='<div class="sep"></div>'+ctxItem('✏️','Editar texto','edittext')+ctxSub('✨','Estilo rápido',Object.entries(STYLES).map(([k2,st])=>ctxItem('A',st.label,'style:'+k2)).join(''));
-      if(isImg(o)||o.placeholder)h+='<div class="sep"></div>'+ctxItem('🖼',o.placeholder?'Poner imagen':'Cambiar imagen','img-replace')+(isImg(o)?ctxItem('✂','Recortar','crop','Ctrl+orilla')+ctxItem('↺','Quitar recorte','uncrop')+ctxSub('✨','Efectos de foto',Object.entries(IMG_FX).map(([k2,f])=>ctxItem('▢',f.label,'imgfx:'+k2)).join(''))+ctxItem('⛶','Llenar todo el lienzo','fillcanvas'):'');
+      if(isImg(o)||o.placeholder)h+='<div class="sep"></div>'+ctxItem('🖼',o.placeholder?'Poner imagen':'Cambiar imagen','img-replace')+(isImg(o)?ctxItem('✂','Recortar','crop','barritas')+ctxItem('↺','Quitar recorte','uncrop')+ctxSub('✨','Efectos de foto',Object.entries(IMG_FX).map(([k2,f])=>ctxItem('▢',f.label,'imgfx:'+k2)).join(''))+ctxItem('⛶','Llenar todo el lienzo','fillcanvas'):'');
       if(isImg(o))h+=ctxItem('🩹','Corregir zona con IA','img-zone','','ai')+ctxItem('🪄','Editar con IA','img-edit','','ai')+ctxItem('✂','Quitar fondo gratis','img-rmbg-free')+ctxItem('✂','Quitar fondo con IA','img-rmbg','','ai');
       h+='<div class="sep"></div>'+ctxItem('🏷','Campo para serie…','campo',o.campo?esc(o.campo):'')+ctxItem('✎','Renombrar capa…','rename')+ctxItem('🙈','Ocultar','hide')+ctxItem('🔒','Bloquear','lock');
     }
